@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Snipit - 광고 레퍼런스 저장",
+  "version": "1.0.0",
+  "description": "Meta 광고 라이브러리와 Instagram에서 광고 레퍼런스를 원클릭으로 스니핏에 저장하세요.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://www.facebook.com/ads/library/*",
+    "https://www.instagram.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/ads/library/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    },
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

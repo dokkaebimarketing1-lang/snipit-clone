@@ -1,0 +1,16 @@
+/* Override AppShell styles for the landing page */
+.mantine-AppShell-navbar {
+  display: none !important;
+}
+
+.mantine-AppShell-main {
+  padding: 0 !important;
+  margin-left: 0 !important;
+  background-color: #ffffff !important;
+  min-height: 100vh !important;
+}
+
+/* Hide the floating action buttons (Affix) */
+.mantine-Affix-root {
+  display: none !important;
+}
