@@ -15,6 +15,51 @@ interface SearchResult {
   copyText: string;
 }
 
+function generateMockResults(query: string): SearchResult[] {
+  const platforms = ["meta", "instagram", "google", "tiktok"] as const;
+  const mediaTypes = ["photo", "video", "reels", "carousel"] as const;
+  const brands = [
+    "올리브영", "무신사", "29CM", "마켓컬리", "토스",
+    "당근마켓", "배달의민족", "야놀자", "카카오", "네이버",
+    "쿠팡", "Snipit", "뷔 fwee", "번개장터", "크림",
+    "오늘의집", "에이블리", "지그재그", "W컨셉", "SSG",
+  ];
+  const copies = [
+    "지금 시작하면 50% 할인",
+    "이 광고를 보고 있다면 당신도 이미 알고 있을 거예요",
+    "3일만에 완판된 비밀",
+    "마케터가 숨기고 싶은 레퍼런스",
+    "지금 바로 확인하세요",
+    "한정 수량 특별 프로모션",
+    "당신만을 위한 맞춤 추천",
+    "올 시즌 가장 핫한 아이템",
+    "무료배송 + 추가 할인 쿠폰",
+    "인플루언서들이 먼저 찾는 이유",
+  ];
+
+  const seed = query.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const count = 20;
+  const results: SearchResult[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const s = seed + i;
+    const picId = (s * 7 + 10) % 200 + 10;
+    results.push({
+      id: `mock-search-${s}-${i}`,
+      imageUrl: `https://picsum.photos/id/${picId}/400/500`,
+      brandName: brands[s % brands.length],
+      platform: platforms[s % platforms.length],
+      mediaType: mediaTypes[s % mediaTypes.length],
+      status: s % 3 === 0 ? "inactive" : "active",
+      publishedAt: `2026.${String((s % 3) + 1).padStart(2, "0")}.${String((s % 28) + 1).padStart(2, "0")}`,
+      durationDays: (s % 60) + 1,
+      isSponsored: s % 5 === 0,
+      copyText: copies[s % copies.length],
+    });
+  }
+  return results;
+}
+
 export async function searchAds(query: string, mode: "similarity" | "copywrite" = "similarity"): Promise<SearchResult[]> {
   // Track search history if user is authenticated
   try {
@@ -33,9 +78,9 @@ export async function searchAds(query: string, mode: "similarity" | "copywrite" 
 
   // Search via Unsplash API
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-  if (!accessKey) {
-    // Fallback: return empty results if API key not configured
-    return [];
+  if (!accessKey || accessKey.startsWith("your-")) {
+    // No API key configured — return mock results based on query
+    return generateMockResults(query);
   }
 
   try {
