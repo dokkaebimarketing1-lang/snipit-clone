@@ -13,41 +13,96 @@ const seeded = (seed: number) => {
 };
 
 const brands = [
-  "야나두", "모두의연구소", "쏘카", "한끼통살", "풀라이트",
-  "베리시", "무신사 스탠다드", "하림", "29CM", "아이샵케어",
-  "메디테라피", "스위치온", "랭킹닭컴", "디에이이펙트", "올리브영",
-  "토스", "당근마켓", "배달의민족", "마켓컬리", "브런치",
+  "올리브영",
+  "무신사",
+  "마켓컬리",
+  "배달의민족",
+  "토스",
+  "당근마켓",
+  "야놀자",
+  "카카오",
+  "네이버",
+  "쿠팡",
+  "Atchacha",
+  "Snipit",
+  "뷔 fwee",
+  "고이장례연구소",
+  "Kamill Korea",
+  "Meditherapy",
+  "로더랫 L'odeurlette",
+  "Meal It",
+  "CNP Cosmetics",
+  "닥터지",
+  "이니스프리",
+  "라네즈",
+  "설화수",
+  "에뛰드",
+  "미샤",
+  "스킨푸드",
+  "아모레퍼시픽",
+  "LG생활건강",
+  "클리오",
+  "롬앤",
 ];
 
 const copyTexts = [
-  "지금 시작하면 50% 할인",
-  "이 광고를 보고 있다면 당신도 이미 알고 있을 거예요",
-  "절대 하지 마세요, 이걸 모르고 시작하면",
-  "3일만에 완판된 비밀",
-  "마케터가 숨기고 싶은 레퍼런스",
-  "지금 바로 확인하세요",
-  "이번 시즌 가장 핫한 트렌드",
-  "당신의 피부가 달라집니다",
-  "한 번 써보면 멈출 수 없는",
-  "무료 체험 기회를 놓치지 마세요",
+  "매일 1만개 이상 판매! 단독 기획",
+  "설 한정 대용량 1+1",
+  "연말 감사제 1+1 EVENT",
+  "신규 가입자 특별 혜택",
+  "오늘만 1+1+1",
+  "첫 구매 30% 할인",
+  "베스트셀러 재입고 기념 특가",
+  "지금 담으면 무료배송 쿠폰 즉시 지급",
+  "리뷰 5천건 돌파, 고객 만족템",
+  "주말 한정 브랜드데이 최대 60%",
+  "앱 전용 쿠폰팩 증정",
+  "단 48시간, 품절 전 마지막 찬스",
+  "신제품 런칭 기념 사은품 증정",
+  "카카오톡 친구 추가 시 추가 할인",
+  "타임딜 종료 임박, 지금 확인하세요",
 ];
 
-export const mockAds: AdCard[] = Array.from({ length: 40 }, (_, i) => ({
-  id: `ad-${i + 1}`,
-  imageUrl: mockImage(10 + i, 400, 300 + (i % 5) * 60),
-  brandName: brands[i % brands.length],
-  platform: (["meta", "instagram", "meta", "instagram", "google", "tiktok"] as const)[i % 6],
-  mediaType: (["photo", "video", "reels", "carousel"] as const)[i % 4],
-  status: i % 3 === 0 ? "inactive" : "active",
-  publishedAt: `2026.${String(Math.floor(seeded(i * 11) * 3) + 1).padStart(2, "0")}.${String(Math.floor(seeded(i * 13) * 28) + 1).padStart(2, "0")}`,
-  durationDays: Math.floor(seeded(i * 17) * 60) + 1,
-  isSponsored: i % 5 === 0,
-  sponsorName: i % 5 === 0 ? brands[(i + 3) % brands.length] : undefined,
-  copyText: copyTexts[i % copyTexts.length],
-  likes: Math.floor(seeded(i * 19) * 5000) + 100,
-  comments: Math.floor(seeded(i * 23) * 500) + 10,
-  views: Math.floor(seeded(i * 29) * 50000) + 1000,
-}));
+const imageIds = [
+  3, 7, 9, 12, 15, 18, 21, 24, 27, 30,
+  33, 36, 39, 42, 45, 48, 51, 54, 57, 60,
+  63, 66, 69, 72, 75, 78, 81, 84, 87, 90,
+  93, 96, 99, 5, 11, 17, 23, 29, 35, 41,
+];
+
+const imageSizes: Array<[number, number]> = [
+  [400, 500],
+  [600, 400],
+  [420, 560],
+  [480, 640],
+  [560, 420],
+  [450, 600],
+  [520, 680],
+  [640, 430],
+];
+
+export const mockAds: AdCard[] = Array.from({ length: 40 }, (_, i) => {
+  const [w, h] = imageSizes[i % imageSizes.length];
+  const brandName = brands[i % brands.length];
+
+  return {
+    id: `ad-${i + 1}`,
+    imageUrl: mockImage(imageIds[i], w, h),
+    brandName,
+    platform: (["meta", "instagram", "google", "tiktok", "meta", "instagram"] as const)[i % 6],
+    mediaType: (["photo", "video", "carousel", "reels"] as const)[i % 4],
+    status: i % 4 === 0 ? "inactive" : "active",
+    publishedAt: `2025.${String(Math.floor(seeded(i * 11) * 12) + 1).padStart(2, "0")}.${String(Math.floor(seeded(i * 13) * 28) + 1).padStart(2, "0")}`,
+    durationDays: Math.floor(seeded(i * 17) * 45) + 7,
+    isSponsored: i % 5 === 0,
+    sponsorName: i % 5 === 0 ? brands[(i + 4) % brands.length] : undefined,
+    externalUrl: `https://ads.example.com/${encodeURIComponent(brandName)}/${i + 1}`,
+    copyText: copyTexts[i % copyTexts.length],
+    likes: Math.floor(seeded(i * 19) * 5000) + 500,
+    comments: Math.floor(seeded(i * 23) * 900) + 30,
+    views: Math.floor(seeded(i * 29) * 120000) + 3000,
+  };
+});
 
 export const mockCompetitors: Competitor[] = [
   { id: "c1", name: "올리브영", platform: "meta", avatarUrl: mockImage(50, 80, 80), adsCount: 342, activeAds: 28, lastUpdated: "2026.03.15", country: "KR" },
@@ -94,6 +149,24 @@ export const searchTags = [
   "푸드 클로즈업",
 ];
 
+export const aiCategories = [
+  "1+1 프로모션",
+  "행동 유도 CTA",
+  "타겟 페르소나",
+  "고객 후기",
+  "첫 구매 혜택",
+  "올영세일",
+  "캐릭터 콜라보",
+  "신제품",
+  "제품력 강조",
+  "톤",
+  "1위 강조",
+  "공식 스토어",
+  "시즌 한정",
+  "비포/애프터",
+  "감성 무드",
+];
+
 export const categories = [
   "뷰티/화장품", "패션/의류", "F&B/식음료", "테크/IT",
   "금융/핀테크", "여행/레저", "교육/자기계발", "리빙/인테리어",
@@ -110,10 +183,52 @@ export interface BlogPost {
 }
 
 export const mockBlogPosts: BlogPost[] = [
-  { id: "b1", title: "광고 레퍼런스 검색 통합 업데이트: 이미지 검색과 카피 검색 통합·필터·UI/UX 개선", description: "광고 레퍼런스 검색을 통합해 이미지 검색·카피 검색을 한 번에 탐색할 수 있게 했습니다.", date: "2026.03.04", category: "제품스토리", imageUrl: "https://picsum.photos/id/1/400/250" },
-  { id: "b2", title: "경쟁사 광고 분석: 메타 광고 라이브러리 랜딩페이지 통계 및 인스타그램 파트너십(PA) 광고 지표 업데이트", description: "메타 광고 라이브러리 경쟁사 모니터링에 랜딩페이지(URL) 통계와 인스타그램 파트너십 광고 분석 지표가 추가되었습니다.", date: "2026.02.23", category: "제품스토리", imageUrl: "https://picsum.photos/id/2/400/250" },
-  { id: "b3", title: "지원 플랫폼 확장: TikTok 검색·모니터링 기능 업데이트", description: "이제 스니핏에서 TikTok 경쟁사 자동 모니터링과 콘텐츠 레퍼런스 탐색이 가능합니다.", date: "2026.02.12", category: "제품스토리", imageUrl: "https://picsum.photos/id/3/400/250" },
-  { id: "b4", title: "인스타그램 계정 분석부터 경쟁사 모니터링 대시보드까지 – Instagram 분석 기능 업데이트", description: "계정의 인게이지먼트, 콘텐츠 유형, 성과 상위 게시물까지 구조화된 리포트로 확인할 수 있는 Instagram 계정 분석기가 추가되었습니다.", date: "2026.02.09", category: "제품스토리", imageUrl: "https://picsum.photos/id/4/400/250" },
-  { id: "b5", title: "지원 플랫폼 확장: Google Ads 검색·모니터링 & 릴스 스크립트 자동 생성 기능 업데이트", description: "Google Ads 지원 시작! 이제 메타·인스타그램은 물론, 구글 디스플레이·유튜브 광고까지 한 번에 검색하고 모니터링하세요.", date: "2026.02.05", category: "제품스토리", imageUrl: "https://picsum.photos/id/5/400/250" },
-  { id: "b6", title: "신규 프로모션: 스니핏 플랜 7일 무료 체험 시작 안내", description: "추천인 프로모션이 종료되고, 플랜을 결제하기 전 7일간 충분히 기능을 체험해볼 수 있는 무료 체험 프로모션이 시작됩니다.", date: "2026.02.04", category: "연결의 기록", imageUrl: "https://picsum.photos/id/6/400/250" },
+  {
+    id: "1",
+    category: "제품스토리",
+    title: "광고 레퍼런스 검색 통합 업데이트: 이미지 검색과 카피 검색 통합·필터·UI/UX 개선",
+    date: "2026.03.04",
+    description: "광고 레퍼런스 검색을 통합해 이미지 검색과 카피 검색을 한 번에 탐색하고, 필터와 탐색 UI를 더 빠르게 개선했습니다.",
+    imageUrl: "https://picsum.photos/id/14/400/250",
+  },
+  {
+    id: "2",
+    category: "제품스토리",
+    title: "경쟁사 광고 분석: 메타 광고 라이브러리 랜딩페이지 통계 및 인스타그램 파트너십(PA) 광고 지표 업데이트",
+    date: "2026.02.23",
+    description: "메타 광고 라이브러리 경쟁사 모니터링에 랜딩페이지 URL 통계와 인스타그램 파트너십 광고 지표를 추가해 인사이트 파악 속도를 높였습니다.",
+    imageUrl: "https://picsum.photos/id/16/400/250",
+  },
+  {
+    id: "3",
+    category: "제품스토리",
+    title: "지원 플랫폼 확장: TikTok 검색·모니터링 기능 업데이트",
+    date: "2026.02.12",
+    description: "이제 스니핏에서 TikTok 광고도 검색하고 경쟁사 신규 소재를 자동 모니터링하며 트렌드를 빠르게 확인할 수 있습니다.",
+    imageUrl: "https://picsum.photos/id/22/400/250",
+  },
+  {
+    id: "4",
+    category: "제품스토리",
+    title: "인스타그램 계정 분석부터 경쟁사 모니터링 대시보드까지 – Instagram 분석 기능 업데이트",
+    date: "2026.02.09",
+    description: "계정 인게이지먼트, 콘텐츠 유형, 성과 상위 게시물을 구조화된 리포트로 확인할 수 있는 Instagram 분석 기능을 제공합니다.",
+    imageUrl: "https://picsum.photos/id/28/400/250",
+  },
+  {
+    id: "5",
+    category: "제품스토리",
+    title: "지원 플랫폼 확장: Google Ads 검색·모니터링 & 릴스 스크립트 자동 생성 기능 업데이트",
+    date: "2026.02.05",
+    description: "Google Ads 지원이 추가되어 메타·인스타그램·구글 광고를 한 번에 탐색하고, 릴스 스크립트를 자동 생성할 수 있습니다.",
+    imageUrl: "https://picsum.photos/id/34/400/250",
+  },
+  {
+    id: "6",
+    category: "연결의 기록",
+    title: "신규 프로모션 : 스니핏 플랜 7일 무료 체험 시작 안내",
+    date: "2026.02.04",
+    description: "신규 플랜 도입 기념으로 결제 전 7일 무료 체험을 제공하며, 팀 온보딩 가이드와 추천 레퍼런스 큐레이션을 함께 지원합니다.",
+    imageUrl: "https://picsum.photos/id/38/400/250",
+  },
 ];

@@ -1,140 +1,193 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Box, Group, Image, ScrollArea, Stack, Text, Title, UnstyledButton } from "@mantine/core";
 import {
-  Title,
-  Text,
-  Group,
-  Button,
-  SimpleGrid,
-  Card,
-  Image,
-  Badge,
-  Stack,
-  ThemeIcon,
-  Paper,
-} from "@mantine/core";
-import {
-  IconSparkles,
-  IconRefresh,
-  IconBrandMeta,
-  IconBrandInstagram,
-  IconBrandGoogle,
-  IconBrandTiktok,
+  IconCalendar,
+  IconExternalLink,
+  IconLayoutGrid,
+  IconPhoto,
   IconPlayerPlay,
 } from "@tabler/icons-react";
-import { mockAds } from "@/data/mockAds";
-import { Platform } from "@/types";
-import dayjs from "dayjs";
+import { aiCategories, mockAds } from "@/data/mockAds";
+import { AdCard as AdCardType, MediaType, Platform } from "@/types";
 
-const platformIcons: Record<Platform, React.ReactNode> = {
-  meta: <IconBrandMeta size={14} />,
-  instagram: <IconBrandInstagram size={14} />,
-  google: <IconBrandGoogle size={14} />,
-  tiktok: <IconBrandTiktok size={14} />,
-  youtube: <IconPlayerPlay size={14} />,
+const platformBadgeLabel: Record<Platform, string> = {
+  meta: "Meta 광고",
+  instagram: "Instagram 광고",
+  google: "Google 광고",
+  tiktok: "TikTok 광고",
+  youtube: "YouTube 광고",
 };
 
-const platformColors: Record<Platform, string> = {
-  meta: "blue",
-  instagram: "pink",
-  google: "red",
-  tiktok: "dark",
-  youtube: "red",
+const mediaTypeIcon: Record<MediaType, React.ComponentType<{ size?: number; color?: string }>> = {
+  photo: IconPhoto,
+  video: IconPlayerPlay,
+  reels: IconPlayerPlay,
+  carousel: IconLayoutGrid,
 };
 
-const aiReasons = [
-  "최근 3일간 전환율이 급상승한 소재입니다.",
-  "유사한 타겟층에서 높은 클릭률을 보이고 있습니다.",
-  "새로운 카피라이팅 패턴이 적용되어 반응이 좋습니다.",
-  "시각적 대비가 뚜렷하여 주목도가 높습니다.",
-  "최근 트렌드인 숏폼 포맷을 잘 활용했습니다.",
-  "사용자 리뷰를 효과적으로 활용한 사례입니다.",
-  "명확한 CTA로 행동을 유도하고 있습니다.",
-  "계절성을 잘 반영한 시즈널 캠페인입니다.",
-];
+function formatDate(date: string): string {
+  const [year, month, day] = date.split(".");
+  return `${year}.${month}.${day}`;
+}
 
 export default function AIPage() {
-  const today = dayjs().format("YYYY년 MM월 DD일");
-  const recommendedAds = mockAds.slice(0, 8);
+  const [activeCategory, setActiveCategory] = useState(aiCategories[0]);
+
+  const adsByCategory = useMemo(() => {
+    return aiCategories.reduce<Record<string, AdCardType[]>>((acc, category, index) => {
+      const start = (index * 3) % mockAds.length;
+      const ads = Array.from({ length: 6 }, (_, offset) => {
+        const ad = mockAds[(start + offset) % mockAds.length];
+        return {
+          ...ad,
+          copyText: `${category} · ${ad.copyText ?? "성과형 크리에이티브"}`,
+        };
+      });
+      acc[category] = ads;
+      return acc;
+    }, {});
+  }, []);
+
+  const activeAds = adsByCategory[activeCategory] ?? [];
 
   return (
-    <Stack gap="xl">
-      <Group justify="space-between" align="flex-end">
-        <Group gap="sm">
-          <ThemeIcon size="lg" radius="md" variant="light" color="violet">
-            <IconSparkles size={20} />
-          </ThemeIcon>
-          <Title order={2}>AI 추천</Title>
-        </Group>
-        <Button
-          variant="light"
-          color="violet"
-          leftSection={<IconRefresh size={16} />}
-        >
-          다른 추천 보기
-        </Button>
-      </Group>
-
-      <Stack gap="xs">
-        <Text fw={600} size="lg">
-          오늘의 AI 추천 광고
-        </Text>
-        <Text c="dimmed" size="sm">
-          {today} 기준, 마케터님의 관심사를 분석하여 선별한 레퍼런스입니다.
-        </Text>
-      </Stack>
-
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">
-        {recommendedAds.map((ad, index) => (
-          <Card key={ad.id} withBorder padding="md" radius="md">
-            <Card.Section>
-              <Image src={ad.imageUrl} height={200} alt={ad.brandName} />
-            </Card.Section>
-
-            <Stack gap="sm" mt="md">
-              <Group justify="space-between" wrap="nowrap">
-                <Text fw={600} truncate>
-                  {ad.brandName}
-                </Text>
-                <Badge
-                  size="sm"
-                  variant="light"
-                  color={platformColors[ad.platform]}
-                  leftSection={platformIcons[ad.platform]}
-                >
-                  {ad.platform}
-                </Badge>
-              </Group>
-
-              <Paper withBorder p="sm" radius="sm" bg="violet.0">
-                <Group gap="xs" wrap="nowrap" align="flex-start">
-                  <ThemeIcon size="sm" variant="transparent" color="violet">
-                    <IconSparkles size={14} />
-                  </ThemeIcon>
-                  <Text size="xs" c="violet.9" lh={1.4}>
-                    {aiReasons[index % aiReasons.length]}
-                  </Text>
-                </Group>
-              </Paper>
-            </Stack>
-          </Card>
-        ))}
-      </SimpleGrid>
-
-      <Paper withBorder p="xl" radius="md" bg="gray.0" mt="xl">
-        <Stack align="center" ta="center" gap="sm">
-          <ThemeIcon size="xl" radius="xl" variant="light" color="violet">
-            <IconSparkles size={24} />
-          </ThemeIcon>
-          <Title order={4}>AI 큐레이션이란?</Title>
-          <Text c="dimmed" size="sm" maw={600}>
-            스니핏의 AI가 수백만 개의 광고 데이터를 분석하여, 현재 가장 성과가
-            좋은 패턴과 트렌드를 찾아냅니다. 마케터님의 이전 검색 기록과 저장한
-            보드를 바탕으로 가장 연관성 높은 레퍼런스를 매일 새롭게 추천해
-            드립니다.
+    <Stack gap="lg">
+      <Group justify="space-between" align="flex-end" wrap="nowrap">
+        <Stack gap={2}>
+          <Title order={2}>오늘의 AI 추천 광고</Title>
+          <Text size="sm" c="dimmed">
+            03.11 16:26 업데이트
           </Text>
         </Stack>
-      </Paper>
+      </Group>
+
+      <ScrollArea type="never" scrollbarSize={6} offsetScrollbars>
+        <Group gap="xs" wrap="nowrap" py={4}>
+          {aiCategories.map((category) => {
+            const active = category === activeCategory;
+            return (
+              <UnstyledButton
+                key={category}
+                onClick={() => setActiveCategory(category)}
+                style={{
+                  whiteSpace: "nowrap",
+                  borderRadius: 999,
+                  border: active ? "1px solid #111827" : "1px solid #e5e7eb",
+                  background: active ? "#111827" : "#ffffff",
+                  color: active ? "#ffffff" : "#374151",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "9px 14px",
+                  lineHeight: 1,
+                }}
+              >
+                {category}
+              </UnstyledButton>
+            );
+          })}
+        </Group>
+      </ScrollArea>
+
+      <Stack gap="xs">
+        <Text fw={700} size="sm" c="gray.8">
+          {activeCategory}
+        </Text>
+
+        <ScrollArea type="never" scrollbarSize={6} offsetScrollbars>
+          <Group gap="md" wrap="nowrap" align="stretch" py={4}>
+            {activeAds.map((ad) => {
+              const MediaIcon = mediaTypeIcon[ad.mediaType];
+
+              return (
+                <Box
+                  key={`${activeCategory}-${ad.id}`}
+                  style={{
+                    width: 236,
+                    minWidth: 236,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 14,
+                    background: "#fff",
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box style={{ position: "relative" }}>
+                    <Image src={ad.imageUrl} alt={ad.brandName} h={300} fit="cover" />
+                    <Box
+                      style={{
+                        position: "absolute",
+                        top: 10,
+                        right: 10,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        background: "rgba(17, 24, 39, 0.7)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backdropFilter: "blur(4px)",
+                      }}
+                    >
+                      <MediaIcon size={14} color="#fff" />
+                    </Box>
+                  </Box>
+
+                  <Stack gap={8} p="sm">
+                    <Group gap={6} wrap="nowrap">
+                      <Text
+                        size="xs"
+                        fw={600}
+                        c="gray.7"
+                        style={{
+                          border: "1px solid #d1d5db",
+                          borderRadius: 999,
+                          padding: "3px 8px",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {platformBadgeLabel[ad.platform]}
+                      </Text>
+                      <IconExternalLink size={13} color="#6b7280" />
+                    </Group>
+
+                    <Text fw={700} size="sm" lineClamp={1}>
+                      {ad.brandName}
+                    </Text>
+
+                    <Text size="xs" c="dimmed">
+                      {formatDate(ad.publishedAt)}
+                    </Text>
+
+                    <Group justify="space-between" align="center" wrap="nowrap">
+                      <Group gap={5} wrap="nowrap">
+                        <Box
+                          style={{
+                            width: 7,
+                            height: 7,
+                            borderRadius: "50%",
+                            background: ad.status === "active" ? "#22c55e" : "#9ca3af",
+                          }}
+                        />
+                        <Text size="xs" c="dimmed">
+                          {ad.status === "active" ? "게재 중" : "게재 종료"}
+                        </Text>
+                      </Group>
+
+                      <Group gap={4} wrap="nowrap">
+                        <IconCalendar size={12} color="#9ca3af" />
+                        <Text size="xs" c="dimmed">
+                          {ad.durationDays}일간 게재
+                        </Text>
+                      </Group>
+                    </Group>
+                  </Stack>
+                </Box>
+              );
+            })}
+          </Group>
+        </ScrollArea>
+      </Stack>
     </Stack>
   );
 }

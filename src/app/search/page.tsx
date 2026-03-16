@@ -12,7 +12,7 @@ import {
   Select,
   ActionIcon,
   Text,
-  SimpleGrid,
+  ScrollArea,
   Loader,
 } from "@mantine/core";
 import { IconSearch, IconFilter, IconSortDescending } from "@tabler/icons-react";
@@ -25,8 +25,8 @@ import { SearchMode, AdCard as AdCardType } from "@/types";
 export default function SearchPage() {
   const [searchMode, setSearchMode] = useState<SearchMode>("similarity");
   const [searchQuery, setSearchQuery] = useState("");
-  const [results, setResults] = useState<AdCardType[]>(mockAds.slice(2));
-  const [popularResults, setPopularResults] = useState<AdCardType[]>(mockAds.slice(0, 2));
+  const [results, setResults] = useState<AdCardType[]>(mockAds.slice(6));
+  const [popularResults, setPopularResults] = useState<AdCardType[]>(mockAds.slice(0, 6));
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -57,15 +57,15 @@ export default function SearchPage() {
             copyText: r.copyText as string,
           })
         );
-        setPopularResults(mapped.slice(0, 2));
-        setResults(mapped.slice(2));
+        setPopularResults(mapped.slice(0, 6));
+        setResults(mapped.slice(6));
       } else {
-        setPopularResults(mockAds.slice(0, 2));
-        setResults(mockAds.slice(2));
+        setPopularResults(mockAds.slice(0, 6));
+        setResults(mockAds.slice(6));
       }
     } catch {
-      setPopularResults(mockAds.slice(0, 2));
-      setResults(mockAds.slice(2));
+      setPopularResults(mockAds.slice(0, 6));
+      setResults(mockAds.slice(6));
     }
     setIsSearching(false);
   };
@@ -194,14 +194,28 @@ export default function SearchPage() {
       ) : (
         <>
           <Box mb={60}>
-            <Title order={3} mb="lg">
-              {hasSearched ? "인기 결과" : "자주 저장된 레퍼런스"}
-            </Title>
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg">
-              {popularResults.map((ad) => (
-                <AdCard key={ad.id} ad={ad} />
-              ))}
-            </SimpleGrid>
+            <Group justify="space-between" mb="lg">
+              <Group gap="sm">
+                <Title order={3}>
+                  {hasSearched ? "인기 결과" : "자주 저장된 레퍼런스"}
+                </Title>
+                <Text size="sm" c="dimmed">
+                  다른 사용자가 자주 저장한 레퍼런스를 모아봤어요
+                </Text>
+              </Group>
+              <Text size="sm" c="dimmed" style={{ cursor: "pointer" }}>
+                다른 레퍼런스 보기
+              </Text>
+            </Group>
+            <ScrollArea scrollbars="x" type="never">
+              <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content" }}>
+                {popularResults.map((ad) => (
+                  <Box key={ad.id} style={{ width: 240, flexShrink: 0 }}>
+                    <AdCard ad={ad} />
+                  </Box>
+                ))}
+              </Group>
+            </ScrollArea>
           </Box>
 
           <Box>

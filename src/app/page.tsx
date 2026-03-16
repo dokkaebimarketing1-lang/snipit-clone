@@ -90,19 +90,46 @@ export default function HomePage() {
         <Box mb={80}>
           <Grid>
             <Grid.Col span={9}>
-              {/* 큰 뉴스 카드 — 파란 그라데이션 배경 */}
-              <Card style={{background: "linear-gradient(135deg, #334FFF 0%, #687DFF 100%)", color: "white", height: 200}}>
+              {/* 큰 뉴스 카드 — 파란 그라데이션 배경 + 목업 이미지 */}
+              <Card
+                style={{
+                  background: "linear-gradient(135deg, #334FFF 0%, #687DFF 100%)",
+                  color: "white",
+                  height: 220,
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <Box
+                  style={{
+                    position: "absolute",
+                    right: 16,
+                    bottom: 16,
+                    width: "52%",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    boxShadow: "0 12px 24px rgba(0,0,0,0.2)",
+                    border: "1px solid rgba(255,255,255,0.35)",
+                  }}
+                >
+                  <Image src="https://picsum.photos/id/0/800/400" height={130} fit="cover" />
+                </Box>
                 <Badge color="white" variant="light" mb="sm">오늘의 스니핏</Badge>
                 <Badge color="rgba(255,255,255,0.2)" variant="filled" mb="sm">2026. 03. 04</Badge>
-                <Title order={3} c="white">광고 레퍼런스 검색 통합 업데이트: 이미지 검색과 카피 검색 통합·필터·UI/UX 개선</Title>
+                <Title order={3} c="white" style={{ maxWidth: "52%" }}>
+                  광고 레퍼런스 검색 통합 업데이트: 이미지 검색과 카피 검색 통합·필터·UI/UX 개선
+                </Title>
               </Card>
             </Grid.Col>
             <Grid.Col span={3}>
               {/* 우측 사용자 후기 카드 */}
-              <Card withBorder style={{height: 200, backgroundColor: "#f8f9fc"}}>
+              <Card withBorder style={{ height: 220, backgroundColor: "#f8f9fc" }}>
                 <Text size="xs" c="dimmed" mb="xs">스니핏과 함께 성장하는 마케터</Text>
-                <Text size="xs" fw={600} mb="sm">@godlifeis_disaster</Text>
-                <Text size="xs" c="dimmed" lineClamp={4}>
+                <Group gap="xs" mb="sm" wrap="nowrap">
+                  <Image src="https://picsum.photos/id/64/56/56" width={28} height={28} radius="xl" />
+                  <Text size="xs" fw={600}>@hee_may_</Text>
+                </Group>
+                <Text size="xs" c="dimmed" lineClamp={5}>
                   "메타 라이브러리 검색이든, 인스타 내 콘텐츠 검색이든 불편하다는 생각은 모든 마케터들이 하고 있을 거에요. 스니핏이 그 과정을 정말로 많이 개선해줬어요."
                 </Text>
               </Card>

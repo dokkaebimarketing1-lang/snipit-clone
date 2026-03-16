@@ -1,5 +1,5 @@
 .masonry {
-  column-count: 1;
+  column-count: 2;
   column-gap: 12px;
   width: 100%;
 }
@@ -11,12 +11,24 @@
 
 @media (min-width: 768px) {
   .masonry {
-    column-count: 2;
+    column-count: 3;
+  }
+}
+
+@media (min-width: 1024px) {
+  .masonry {
+    column-count: 4;
   }
 }
 
 @media (min-width: 1200px) {
   .masonry {
-    column-count: 3;
+    column-count: 5;
+  }
+}
+
+@media (min-width: 1440px) {
+  .masonry {
+    column-count: 6;
   }
 }

@@ -16,6 +16,7 @@ import {
   TextInput,
   List,
   Divider,
+  Table,
 } from "@mantine/core";
 import {
   IconFlask,
@@ -34,6 +35,10 @@ export default function ExperimentPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [accountName, setAccountName] = useState("");
+  const [myAccountName, setMyAccountName] = useState("");
+  const [competitorAccountName, setCompetitorAccountName] = useState("");
+  const [isComparing, setIsComparing] = useState(false);
+  const [showComparisonResult, setShowComparisonResult] = useState(false);
 
   const handleAnalyze = () => {
     if (!accountName) return;
@@ -42,6 +47,15 @@ export default function ExperimentPage() {
       setIsAnalyzing(false);
       setShowResult(true);
     }, 1500);
+  };
+
+  const handleCompareAnalyze = () => {
+    if (!myAccountName || !competitorAccountName) return;
+    setIsComparing(true);
+    setTimeout(() => {
+      setIsComparing(false);
+      setShowComparisonResult(true);
+    }, 1200);
   };
 
   const similarAds = mockAds.slice(10, 14);
@@ -60,7 +74,7 @@ export default function ExperimentPage() {
         </div>
       </Group>
 
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="xl">
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl">
         {/* Feature 1: Image Search */}
         <Card withBorder padding="xl" radius="md">
           <Stack gap="lg">
@@ -255,6 +269,131 @@ export default function ExperimentPage() {
                 >
                   PDF 리포트 다운로드 (준비 중)
                 </Button>
+              </Stack>
+            )}
+          </Stack>
+        </Card>
+
+        {/* Feature 3: My Account vs Competitor Analyzer */}
+        <Card
+          withBorder
+          padding="xl"
+          radius="md"
+          style={{ gridColumn: "1 / -1" }}
+        >
+          <Stack gap="lg">
+            <Group justify="space-between">
+              <Group gap="sm">
+                <ThemeIcon size="md" variant="light" color="violet">
+                  <IconBrandInstagram size={16} />
+                </ThemeIcon>
+                <Title order={4}>내 계정 vs 경쟁 계정 분석기</Title>
+              </Group>
+              <Badge color="violet" variant="light">
+                BETA
+              </Badge>
+            </Group>
+
+            <Text c="dimmed" size="sm">
+              내 Instagram 계정과 경쟁 계정을 비교 분석하여 포지셔닝과 개선
+              방향을 제안해줘요.
+            </Text>
+
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+              <TextInput
+                label="내 계정 @"
+                placeholder="@my_brand"
+                value={myAccountName}
+                onChange={(e) => setMyAccountName(e.currentTarget.value)}
+              />
+              <TextInput
+                label="경쟁 계정 @"
+                placeholder="@competitor_brand"
+                value={competitorAccountName}
+                onChange={(e) => setCompetitorAccountName(e.currentTarget.value)}
+              />
+            </SimpleGrid>
+
+            <Button
+              onClick={handleCompareAnalyze}
+              loading={isComparing}
+              color="violet"
+            >
+              비교 분석하기
+            </Button>
+
+            {showComparisonResult && (
+              <Stack gap="md" mt="xs">
+                <Text size="sm" fw={500}>
+                  계정 비교 지표
+                </Text>
+                <Table withTableBorder withColumnBorders>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>지표</Table.Th>
+                      <Table.Th>내 계정</Table.Th>
+                      <Table.Th>경쟁 계정</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    <Table.Tr>
+                      <Table.Td>팔로워</Table.Td>
+                      <Table.Td>8.9K</Table.Td>
+                      <Table.Td>12.5K</Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Td>게시물</Table.Td>
+                      <Table.Td>214</Table.Td>
+                      <Table.Td>342</Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Td>참여율</Table.Td>
+                      <Table.Td>3.6%</Table.Td>
+                      <Table.Td>4.2%</Table.Td>
+                    </Table.Tr>
+                  </Table.Tbody>
+                </Table>
+
+                <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                  <Paper withBorder p="md" radius="md" bg="green.0">
+                    <Text size="sm" fw={600} mb="xs">
+                      강점 비교
+                    </Text>
+                    <List size="sm" spacing="xs">
+                      <List.Item>
+                        내 계정: 제품 후기형 콘텐츠 저장률이 높고 전환 유도가 명확함
+                      </List.Item>
+                      <List.Item>
+                        경쟁 계정: 릴스 중심 확산력이 높고 신규 유입이 빠름
+                      </List.Item>
+                    </List>
+                  </Paper>
+                  <Paper withBorder p="md" radius="md" bg="red.0">
+                    <Text size="sm" fw={600} mb="xs">
+                      약점 비교
+                    </Text>
+                    <List size="sm" spacing="xs">
+                      <List.Item>
+                        내 계정: 업로드 주기가 불규칙해 도달량 변동 폭이 큼
+                      </List.Item>
+                      <List.Item>
+                        경쟁 계정: 댓글 응대 비율이 낮아 커뮤니티 결속이 약함
+                      </List.Item>
+                    </List>
+                  </Paper>
+                </SimpleGrid>
+
+                <Paper withBorder p="md" radius="md" bg="violet.0">
+                  <Text size="sm" fw={600} mb={4}>
+                    개선 제안
+                  </Text>
+                  <Text size="sm" c="dimmed" lh={1.6}>
+                    내 계정은 후기/신뢰형 콘텐츠 강점을 유지하면서 경쟁 계정의 릴스
+                    템플릿 전략을 일부 도입해 확산력을 높이는 것이 좋습니다. 주 3회
+                    고정 업로드와 질문형 캡션 실험을 4주간 운영하면 참여율 4% 이상
+                    도달 가능성이 높습니다.
+                  </Text>
+                </Paper>
               </Stack>
             )}
           </Stack>

@@ -30,6 +30,7 @@ import {
   IconClock,
 } from "@tabler/icons-react";
 import { mockCompetitors, mockMonitoringStats } from "@/data/mockAds";
+import { useAuth } from "@/hooks/useAuth";
 import { Platform } from "@/types";
 
 const platformIcons: Record<Platform, React.ReactNode> = {
@@ -48,7 +49,94 @@ const platformColors: Record<Platform, string> = {
   youtube: "red",
 };
 
+function MonitoringMarketingIntro() {
+  const showcaseItems = [
+    {
+      title: "채널 믹스 비교",
+      description: "Meta/Google/TikTok 예산 흐름 요약",
+      gradient: "linear-gradient(135deg, #ffe6ea 0%, #ffd6dd 45%, #ffeef1 100%)",
+    },
+    {
+      title: "메시지 포지셔닝",
+      description: "카피 톤과 오퍼 강조 포인트 분석",
+      gradient: "linear-gradient(135deg, #fdf2e9 0%, #ffe6cc 50%, #fff5e8 100%)",
+    },
+    {
+      title: "성과 패턴 추적",
+      description: "소재별 반응 추이와 반복 패턴 확인",
+      gradient: "linear-gradient(135deg, #e7f5ff 0%, #d9ecff 50%, #f1f8ff 100%)",
+    },
+  ];
+
+  return (
+    <Stack gap="xl">
+      <Stack gap="sm" align="center">
+        <Badge color="red" variant="light" size="lg">
+          OPEN BETA
+        </Badge>
+        <Title order={2} ta="center">
+          경쟁사 광고 전략 보기
+        </Title>
+        <Text ta="center" fw={600} c="red.6" maw={760}>
+          경쟁사의 광고 전략을 한눈에 파악하고, 더 잘되는 캠페인을 빠르게
+          설계하세요.
+        </Text>
+      </Stack>
+
+      <SimpleGrid cols={{ base: 1, md: 3 }} spacing="md">
+        {showcaseItems.map((item) => (
+          <Paper
+            key={item.title}
+            withBorder
+            radius="lg"
+            p="lg"
+            style={{
+              minHeight: 190,
+              background: item.gradient,
+              borderColor: "rgba(0, 0, 0, 0.08)",
+            }}
+          >
+            <Stack justify="space-between" h="100%">
+              <Box
+                style={{
+                  height: 78,
+                  borderRadius: 10,
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.72))",
+                  border: "1px solid rgba(0, 0, 0, 0.06)",
+                }}
+              />
+              <Stack gap={4}>
+                <Text fw={600}>{item.title}</Text>
+                <Text size="sm" c="dimmed">
+                  {item.description}
+                </Text>
+              </Stack>
+            </Stack>
+          </Paper>
+        ))}
+      </SimpleGrid>
+
+      <Paper withBorder p="xl" radius="lg">
+        <Stack gap="sm">
+          <Title order={3}>광고 전략 분석 대시보드</Title>
+          <Text c="dimmed" size="sm" maw={700}>
+            경쟁사의 주요 광고 채널과 메시지 흐름을 모니터링하고 성과 패턴을
+            빠르게 비교해보세요.
+          </Text>
+          <Group mt="sm">
+            <Button component="a" href="/login" size="md" color="red">
+              회원가입하고 경쟁사 탐색하기
+            </Button>
+          </Group>
+        </Stack>
+      </Paper>
+    </Stack>
+  );
+}
+
 export default function MonitoringPage() {
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<string | null>("meta");
   const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(
     mockCompetitors[0].id
@@ -63,10 +151,30 @@ export default function MonitoringPage() {
   );
 
   const donutData = [
-    { name: "이미지", value: mockMonitoringStats.mediaDistribution.photo, color: "blue.6" },
-    { name: "영상", value: mockMonitoringStats.mediaDistribution.video, color: "teal.6" },
-    { name: "캐러셀", value: mockMonitoringStats.mediaDistribution.carousel, color: "yellow.6" },
+    {
+      name: "이미지",
+      value: mockMonitoringStats.mediaDistribution.photo,
+      color: "blue.6",
+    },
+    {
+      name: "영상",
+      value: mockMonitoringStats.mediaDistribution.video,
+      color: "teal.6",
+    },
+    {
+      name: "캐러셀",
+      value: mockMonitoringStats.mediaDistribution.carousel,
+      color: "yellow.6",
+    },
   ];
+
+  if (!user && !loading) {
+    return <MonitoringMarketingIntro />;
+  }
+
+  if (loading) {
+    return null;
+  }
 
   return (
     <Stack gap="xl">

@@ -1,21 +1,13 @@
 "use client";
 
-import { Container, Button, Badge, Grid, Text, Box, Group, Stack, ThemeIcon } from "@mantine/core";
-import { 
-  IconSearch, 
-  IconTypography, 
-  IconPhoto, 
-  IconRobot, 
-  IconChartBar, 
-  IconWorld, 
-  IconFolder, 
-  IconFilter, 
-  IconBrowserCheck, 
+import { Container, Button, Badge, Grid, Text, Box, Group, Tabs, TextInput } from "@mantine/core";
+import {
+  IconSearch,
   IconCheck,
   IconQuote,
   IconBrandInstagram,
   IconBrandBlogger,
-  IconBrandX
+  IconBrandX,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import classes from "./landing.module.css";
@@ -29,198 +21,168 @@ export default function LandingPage() {
           <Link href="/landing" className={classes.logo}>
             스니핏
           </Link>
-          <div className={classes.navLinks}>
+
+          <Group gap={14} wrap="nowrap" className={classes.navLinks}>
             <Link href="#features" className={classes.navLink}>기능소개</Link>
+            <Text c="snipitBlue.4" fw={700} size="sm">◆</Text>
             <Link href="#pricing" className={classes.navLink}>플랜 안내</Link>
+            <Text c="snipitBlue.4" fw={700} size="sm">◆</Text>
             <Link href="#faq" className={classes.navLink}>FAQ</Link>
+            <Text c="snipitBlue.4" fw={700} size="sm">◆</Text>
             <Link href="#blog" className={classes.navLink}>스니핏로그</Link>
-          </div>
-          <Button component={Link} href="/" color="snipitBlue" radius="xl" fw={600}>
-            시작하기
-          </Button>
+          </Group>
+
+          <Group gap="sm" wrap="nowrap">
+            <Badge
+              variant="light"
+              radius="xl"
+              styles={{
+                root: {
+                  background: "linear-gradient(135deg, #ffebe4 0%, #ffe6df 50%, #ffe6f2 100%)",
+                  color: "#e8590c",
+                  border: "1px solid #ffd2c4",
+                  padding: "6px 12px",
+                  height: "auto",
+                },
+                label: { fontWeight: 700, fontSize: 12 },
+              }}
+            >
+              프리미엄 기능도 7일 무료로 체험해보세요
+            </Badge>
+            <Link href="/" className={classes.navLink}>로그인</Link>
+            <Button component={Link} href="/" variant="outline" color="snipitBlue" radius="xl" fw={700}>
+              무료로 시작하기
+            </Button>
+          </Group>
         </Container>
       </header>
 
       {/* Hero Section */}
       <section className={classes.hero}>
         <Container size="md">
-          <Badge 
-            variant="light" 
-            color="snipitBlue" 
-            size="lg" 
-            radius="xl" 
-            mb="xl"
-            styles={{ root: { padding: '8px 16px', height: 'auto' }, label: { fontSize: '14px', fontWeight: 700 } }}
+          <Text
+            fw={800}
+            mb="sm"
+            style={{
+              fontSize: "28px",
+              letterSpacing: "-0.04em",
+              lineHeight: 1.35,
+              background: "linear-gradient(90deg, #ff4d4f 0%, #ff922b 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
           >
-            OPEN BETA
-          </Badge>
-          <h1 className={classes.heroTitle}>
-            찾고 싶을 때 찾아지는<br />콘텐츠 레퍼런스
+            그 릴스 분명 봤는데... 도무지 찾을 수가 없어요
+          </Text>
+
+          <h1 className={classes.heroTitle} style={{ marginBottom: "18px" }}>
+            찾고싶을 때 <span style={{
+              background: "linear-gradient(90deg, #334fff 0%, #5f78ff 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}>찾아지는</span> 콘텐츠 레퍼런스, <span style={{
+              background: "linear-gradient(90deg, #334fff 0%, #5f78ff 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}>스니핏</span>
           </h1>
-          <p className={classes.heroSubtitle}>
-            레퍼런스 찾는 시간을 10배 줄여주는<br />AI 기반 광고 레퍼런스 검색 & 모니터링 플랫폼
+
+          <p className={classes.heroSubtitle} style={{ marginBottom: "34px" }}>
+            마케터가 보고 싶은 레퍼런스에 가장 빠르게 도달하는 방법
           </p>
-          <Button 
-            component={Link} 
-            href="/" 
-            size="xl" 
-            radius="xl" 
-            variant="gradient" 
-            gradient={{ from: '#334FFF', to: '#687DFF', deg: 135 }}
-            style={{ boxShadow: '0 8px 24px rgba(51, 79, 255, 0.25)' }}
+
+          <Box
+            style={{
+              border: "1px solid #e9ecef",
+              borderRadius: 18,
+              background: "#fff",
+              padding: "16px 16px 14px",
+              boxShadow: "0 14px 34px rgba(12, 34, 88, 0.08)",
+              maxWidth: 860,
+              margin: "0 auto",
+            }}
           >
-            무료로 시작하기
-          </Button>
+            <Tabs defaultValue="search" keepMounted={false}>
+              <Tabs.List grow>
+                <Tabs.Tab value="search">머릿속 콘텐츠를 찾아내는 검색</Tabs.Tab>
+                <Tabs.Tab value="monitoring">자동으로 쌓이는 경쟁사 모니터링</Tabs.Tab>
+                <Tabs.Tab value="board">주목할 레퍼런스를 모아보는 광고 보드</Tabs.Tab>
+              </Tabs.List>
+            </Tabs>
+
+            <TextInput
+              mt="md"
+              size="lg"
+              radius="xl"
+              placeholder="그때 봤던 뷰티 릴스, 맑은 피부톤 + 흰 배경 + 짧은 후킹 카피"
+              leftSection={<IconSearch size={18} color="#868e96" />}
+              rightSection={<IconSearch size={18} color="#adb5bd" />}
+              styles={{
+                input: {
+                  border: "1px solid #dee2e6",
+                  boxShadow: "0 6px 20px rgba(51, 79, 255, 0.05)",
+                  height: 52,
+                },
+              }}
+            />
+
+            <Text size="sm" c="dimmed" mt="sm" ta="left">
+              TIP : 테마와 분위기, 목적성이 드러나는 검색어를 입력해보세요. 릴스나 광고, 플랫폼 별 보기도 가능해요.
+            </Text>
+          </Box>
         </Container>
       </section>
 
-      {/* Feature Section 1: 검색 */}
+      {/* Feature Section */}
       <section id="features" className={classes.section}>
         <Container size="lg">
-          <h2 className={classes.sectionTitle}>머릿속 콘텐츠를 바로 찾아내는 검색</h2>
           <Grid gutter="xl">
             <Grid.Col span={{ base: 12, md: 4 }}>
               <div className={classes.featureCard}>
-                <div className={classes.featureIcon}>
-                  <IconPhoto size={28} stroke={1.5} />
-                </div>
-                <h3 className={classes.featureTitle}>이미지 기반 검색</h3>
-                <p className={classes.featureDesc}>
-                  무드, 카피, 색상 등 이미지 요소로 검색하여 원하는 느낌의 레퍼런스를 정확하게 찾아냅니다.
-                </p>
+                <h3 className={classes.featureTitle}>찾는 방식을 바꿉니다</h3>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--mantine-color-gray-6)", lineHeight: 1.75 }}>
+                  <li>보고 있던 장면, 톤, 카피를 한 번에 검색합니다.</li>
+                  <li>키워드와 분위기를 조합해 필요한 레퍼런스로 좁혀갑니다.</li>
+                  <li>기억에 남은 릴스를 유사 탐색으로 빠르게 다시 찾습니다.</li>
+                </ul>
               </div>
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}>
               <div className={classes.featureCard}>
-                <div className={classes.featureIcon}>
-                  <IconTypography size={28} stroke={1.5} />
-                </div>
-                <h3 className={classes.featureTitle}>카피라이트 검색</h3>
-                <p className={classes.featureDesc}>
-                  광고 카피 텍스트 기반 검색으로 특정 키워드나 메시지를 담은 광고를 쉽게 찾을 수 있습니다.
-                </p>
+                <h3 className={classes.featureTitle}>반복 탐색을 자동화합니다</h3>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--mantine-color-gray-6)", lineHeight: 1.75 }}>
+                  <li>관심 경쟁사를 등록하면 매일 신규 광고가 자동 수집됩니다.</li>
+                  <li>성과 지표와 집행 기간 변화를 한 화면에서 확인합니다.</li>
+                  <li>놓치기 쉬운 소재 변화를 지속적으로 추적합니다.</li>
+                </ul>
               </div>
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}>
               <div className={classes.featureCard}>
-                <div className={classes.featureIcon}>
-                  <IconSearch size={28} stroke={1.5} />
-                </div>
-                <h3 className={classes.featureTitle}>유사 이미지 탐색</h3>
-                <p className={classes.featureDesc}>
-                  선택한 이미지와 비슷한 레퍼런스를 추천받아 아이디어를 무한히 확장할 수 있습니다.
-                </p>
+                <h3 className={classes.featureTitle}>레퍼런스를 바로 저장합니다.</h3>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--mantine-color-gray-6)", lineHeight: 1.75 }}>
+                  <li>찾은 레퍼런스를 보드에 즉시 저장하고 분류합니다.</li>
+                  <li>캠페인/브랜드 기준으로 팀 레퍼런스를 체계화합니다.</li>
+                  <li>재탐색 없이 필요한 순간 빠르게 꺼내 씁니다.</li>
+                </ul>
               </div>
             </Grid.Col>
           </Grid>
         </Container>
       </section>
 
-      {/* Feature Section 2: 모니터링 */}
+      {/* Productivity Section */}
       <section className={classes.sectionGray}>
-        <Container size="lg">
-          <h2 className={classes.sectionTitle}>자동으로 쌓이는 경쟁사 모니터링</h2>
-          <Grid gutter="xl">
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <div className={classes.featureCard}>
-                <div className={classes.featureIcon}>
-                  <IconRobot size={28} stroke={1.5} />
-                </div>
-                <h3 className={classes.featureTitle}>매일 자동 수집</h3>
-                <p className={classes.featureDesc}>
-                  한 번 설정하면 경쟁사 광고를 매일 자동으로 모니터링하여 최신 동향을 놓치지 않습니다.
-                </p>
-              </div>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <div className={classes.featureCard}>
-                <div className={classes.featureIcon}>
-                  <IconChartBar size={28} stroke={1.5} />
-                </div>
-                <h3 className={classes.featureTitle}>분석 대시보드</h3>
-                <p className={classes.featureDesc}>
-                  게재 추이, 미디어 분포, 게재 기간 차트를 통해 경쟁사의 마케팅 전략을 한눈에 파악합니다.
-                </p>
-              </div>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <div className={classes.featureCard}>
-                <div className={classes.featureIcon}>
-                  <IconWorld size={28} stroke={1.5} />
-                </div>
-                <h3 className={classes.featureTitle}>글로벌 246개국</h3>
-                <p className={classes.featureDesc}>
-                  국내뿐만 아니라 해외 경쟁사도 모니터링 가능하여 글로벌 트렌드를 파악할 수 있습니다.
-                </p>
-              </div>
-            </Grid.Col>
-          </Grid>
-        </Container>
-      </section>
-
-      {/* Feature Section 3: 보드 & 저장 */}
-      <section className={classes.section}>
-        <Container size="lg">
-          <Grid gutter={60} align="center">
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <h2 className={classes.sectionTitle} style={{ textAlign: 'left', marginBottom: '32px' }}>
-                주목할 레퍼런스를<br />모아보는 보드
-              </h2>
-              <Stack gap="lg">
-                <Group wrap="nowrap" align="flex-start">
-                  <ThemeIcon size={48} radius="md" variant="light" color="snipitBlue">
-                    <IconFolder size={24} stroke={1.5} />
-                  </ThemeIcon>
-                  <div>
-                    <Text fw={700} size="lg" mb={4}>무제한 보드 생성</Text>
-                    <Text c="dimmed">프로젝트별, 캠페인별로 무제한으로 보드를 생성하여 관리하세요.</Text>
-                  </div>
-                </Group>
-                <Group wrap="nowrap" align="flex-start">
-                  <ThemeIcon size={48} radius="md" variant="light" color="snipitBlue">
-                    <IconFilter size={24} stroke={1.5} />
-                  </ThemeIcon>
-                  <div>
-                    <Text fw={700} size="lg" mb={4}>폴더 분류 + 필터</Text>
-                    <Text c="dimmed">체계적인 폴더 분류와 강력한 필터 기능으로 원하는 자료를 빠르게 찾습니다.</Text>
-                  </div>
-                </Group>
-                <Group wrap="nowrap" align="flex-start">
-                  <ThemeIcon size={48} radius="md" variant="light" color="snipitBlue">
-                    <IconBrowserCheck size={24} stroke={1.5} />
-                  </ThemeIcon>
-                  <div>
-                    <Text fw={700} size="lg" mb={4}>크롬 확장 프로그램으로 즉시 저장</Text>
-                    <Text c="dimmed">웹 서핑 중 발견한 좋은 레퍼런스를 클릭 한 번으로 내 보드에 저장하세요.</Text>
-                  </div>
-                </Group>
-                <Group wrap="nowrap" align="flex-start">
-                  <ThemeIcon size={48} radius="md" variant="light" color="snipitBlue">
-                    <IconChartBar size={24} stroke={1.5} />
-                  </ThemeIcon>
-                  <div>
-                    <Text fw={700} size="lg" mb={4}>콘텐츠 정보 및 성과 자동 첨부</Text>
-                    <Text c="dimmed">저장된 레퍼런스의 상세 정보와 성과 데이터가 자동으로 함께 저장됩니다.</Text>
-                  </div>
-                </Group>
-              </Stack>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Box 
-                style={{ 
-                  background: 'linear-gradient(135deg, #f0f4ff 0%, #e5eaff 100%)', 
-                  borderRadius: '24px', 
-                  height: '500px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid var(--mantine-color-gray-2)'
-                }}
-              >
-                <Text c="dimmed" fw={500}>보드 UI 이미지 영역</Text>
-              </Box>
-            </Grid.Col>
-          </Grid>
+        <Container size="lg" style={{ textAlign: "center" }}>
+          <Badge variant="light" color="snipitBlue" radius="xl" mb="md">마케터를 위한 생산성</Badge>
+          <h2 className={classes.sectionTitle} style={{ marginBottom: "16px" }}>
+            검색으로 도달하고, 모니터링으로 방향을 잡고, 보드로 쌓아가는
+            <br />
+            마케터를 위한 새로운 레퍼런스 탐색 방식
+          </h2>
+          <Text size="lg" c="dimmed" maw={820} mx="auto">
+            찾고 싶은 순간에 곧바로 도달하고, 반복 리서치를 자동화하고, 팀의 인사이트를 자산으로 남기는 흐름을 스니핏에서 완성하세요.
+          </Text>
         </Container>
       </section>
 
