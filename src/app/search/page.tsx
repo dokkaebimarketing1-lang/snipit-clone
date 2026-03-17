@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Container,
   Title,
@@ -20,15 +20,46 @@ import { mockAds, searchTags } from "@/data/mockAds";
 import { AdCard } from "@/components/cards/AdCard";
 import { MasonryGrid } from "@/components/common/MasonryGrid";
 import { PaywallOverlay } from "@/components/common/PaywallOverlay";
+import { getFeaturedAds } from "@/app/actions/search";
 import { SearchMode, AdCard as AdCardType } from "@/types";
 
 export default function SearchPage() {
   const [searchMode, setSearchMode] = useState<SearchMode>("similarity");
   const [searchQuery, setSearchQuery] = useState("");
-  const [results, setResults] = useState<AdCardType[]>(mockAds.slice(6));
-  const [popularResults, setPopularResults] = useState<AdCardType[]>(mockAds.slice(0, 6));
+  const [results, setResults] = useState<AdCardType[]>([]);
+  const [popularResults, setPopularResults] = useState<AdCardType[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadFeaturedAds = async () => {
+      setIsLoadingFeatured(true);
+
+      try {
+        const featured = await getFeaturedAds(20);
+        const source = featured.length > 0 ? featured : mockAds;
+        if (!isMounted) return;
+        setPopularResults(source.slice(0, 6));
+        setResults(source.slice(6));
+      } catch {
+        if (!isMounted) return;
+        setPopularResults(mockAds.slice(0, 6));
+        setResults(mockAds.slice(6));
+      }
+
+      if (!isMounted) return;
+      setIsLoadingFeatured(false);
+    };
+
+    loadFeaturedAds();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSearch = async (query?: string) => {
     const searchText = query || searchQuery;
@@ -184,11 +215,11 @@ export default function SearchPage() {
         </Group>
       </Group>
 
-      {isSearching ? (
+      {isSearching || isLoadingFeatured ? (
         <Box ta="center" py="xl">
           <Loader size="lg" color="snipitBlue" />
           <Text size="sm" c="dimmed" mt="sm">
-            검색 중...
+            {isSearching ? "검색 중..." : "광고 레퍼런스를 불러오는 중..."}
           </Text>
         </Box>
       ) : (

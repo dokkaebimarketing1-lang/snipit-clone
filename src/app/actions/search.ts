@@ -108,6 +108,38 @@ function mapRowsToSearchResults(rows: ScrapedAdRow[]): SearchResult[] {
   });
 }
 
+function shuffleArray<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+export async function getFeaturedAds(limit = 20): Promise<SearchResult[]> {
+  const safeLimit = Math.max(1, Math.min(limit, 40));
+
+  try {
+    const supabase = await createClient();
+    const selectColumns =
+      "external_id, brand_name, copy_text, image_url, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
+
+    const { data, error } = await supabase
+      .from("scraped_ads")
+      .select(selectColumns)
+      .eq("country", "KR")
+      .order("scraped_at", { ascending: false })
+      .limit(200);
+
+    if (error || !data || data.length === 0) return [];
+
+    return shuffleArray(mapRowsToSearchResults(data as ScrapedAdRow[])).slice(0, safeLimit);
+  } catch {
+    return [];
+  }
+}
+
 async function searchScrapedAds(query: string): Promise<SearchResult[]> {
   const trimmedQuery = query.trim();
   if (!trimmedQuery) return [];

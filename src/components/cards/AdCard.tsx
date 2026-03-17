@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Anchor, Box, Card, Group, Image, Text } from "@mantine/core";
 import {
   IconCalendar,
@@ -44,6 +45,9 @@ function formatDate(date: string): string {
 
 export function AdCard({ ad }: AdCardProps) {
   const MediaIcon = mediaTypeIcon[ad.mediaType];
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const snapshotUrl = useMemo(() => `https://www.facebook.com/ads/library/?id=${encodeURIComponent(ad.id)}`, [ad.id]);
+  const hasImageError = failedImageUrl === ad.imageUrl;
 
   return (
     <Card
@@ -71,7 +75,51 @@ export function AdCard({ ad }: AdCardProps) {
       }}
     >
       <Card.Section style={{ position: "relative" }}>
-        <Image src={ad.imageUrl} alt={ad.brandName} loading="lazy" style={{ width: "100%", height: "auto", display: "block" }} />
+        {hasImageError ? (
+          <Box
+            style={{
+              width: "100%",
+              aspectRatio: "4 / 5",
+              background: "linear-gradient(160deg, #f3f4f6 0%, #e5e7eb 100%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              padding: 16,
+            }}
+          >
+            <Box
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                backgroundColor: "#334155",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+              }}
+            >
+              {ad.brandName.charAt(0) || "A"}
+            </Box>
+            <Text size="sm" fw={600} ta="center" lineClamp={1} c="dark.6">
+              {ad.brandName}
+            </Text>
+            <Anchor href={snapshotUrl} target="_blank" rel="noreferrer" size="xs" fw={600} c="blue.7" underline="hover">
+              광고 보기
+            </Anchor>
+          </Box>
+        ) : (
+          <Image
+            src={ad.imageUrl}
+            alt={ad.brandName}
+            loading="lazy"
+            onError={() => setFailedImageUrl(ad.imageUrl)}
+            style={{ width: "100%", height: "auto", display: "block" }}
+          />
+        )}
         <Box
           style={{
             position: "absolute",
