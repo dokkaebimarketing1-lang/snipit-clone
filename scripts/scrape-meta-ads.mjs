@@ -2,10 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import puppeteer from "puppeteer-extra";
+import puppeteerExtra from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import puppeteerVanilla from "puppeteer";
 
-puppeteer.use(StealthPlugin());
+puppeteerExtra.use(StealthPlugin());
 
 const DEFAULT_KEYWORDS = [
   "올리브영",
@@ -214,74 +215,96 @@ async function scrapeAdsForKeyword(page, keyword) {
   console.log(`[crawl] Open: ${url.toString()}`);
 
   await page.goto(url.toString(), {
-    waitUntil: "domcontentloaded",
+    waitUntil: "networkidle2",
     timeout: 60000,
   });
 
-  await randomDelay();
+  // Wait for ads to render (Meta Ad Library uses heavy JS rendering)
+  await sleep(8000);
   await dismissCookiePopup(page);
+
+  // Debug: check if page has ad content
+  const debugCount = await page.evaluate(() => {
+    const text = document.body.innerText || "";
+    return (text.match(/라이브러리 ID:/g) || []).length;
+  });
+  console.log(`[crawl] ${keyword} | page loaded, ${debugCount} ads visible in DOM`);
 
   const collected = new Map();
   let roundsWithoutNewAds = 0;
 
   for (let round = 1; round <= MAX_SCROLL_ROUNDS; round += 1) {
     const adsOnPage = await page.evaluate(() => {
-      const toAbsolute = (href) => {
-        if (!href) return null;
-        try {
-          return new URL(href, "https://www.facebook.com").toString();
-        } catch {
-          return null;
-        }
-      };
+      const bodyText = document.body.innerText;
 
-      const findSnapshotLink = (root) => {
-        const links = Array.from(root.querySelectorAll('a[href*="/ads/library/?id="]'));
-        return links.length > 0 ? links[0] : null;
-      };
+      // Extract all library IDs from page text
+      const idMatches = [...bodyText.matchAll(/라이브러리 ID:\s*(\d+)/g)];
+      if (idMatches.length === 0) return [];
 
-      const cards = Array.from(document.querySelectorAll('div[role="article"], div.xrvj5dj'));
+      // Split body text into ad blocks using library ID as delimiter
+      const blocks = bodyText.split(/(?=라이브러리 ID:)/);
       const output = [];
 
-      for (const card of cards) {
-        const snapshotAnchor = findSnapshotLink(card);
-        if (!snapshotAnchor) continue;
+      // Collect all ad images (scontent URLs)
+      const adImages = Array.from(document.querySelectorAll('img'))
+        .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 50)
+        .map(i => i.src);
 
-        const snapshotUrl = toAbsolute(snapshotAnchor.getAttribute("href"));
-        if (!snapshotUrl) continue;
+      let imgIndex = 0;
 
-        const brandCandidate =
-          card.querySelector("h3")?.textContent ||
-          card.querySelector('strong[dir="auto"]')?.textContent ||
-          card.querySelector('span[dir="auto"]')?.textContent ||
-          "";
+      for (const block of blocks) {
+        const idMatch = block.match(/라이브러리 ID:\s*(\d+)/);
+        if (!idMatch) continue;
 
-        const textBlocks = Array.from(card.querySelectorAll('div[dir="auto"], span[dir="auto"]'))
-          .map((el) => (el.textContent ?? "").trim())
-          .filter(Boolean);
+        const externalId = idMatch[1];
+        const snapshotUrl = `https://www.facebook.com/ads/library/?id=${externalId}`;
 
-        const cardText = card.textContent ?? "";
+        // Extract date
+        const dateMatch = block.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+        const startedText = dateMatch ? dateMatch[0] : null;
 
-        const imageEl = card.querySelector("img");
-        const videoEl = card.querySelector("video");
+        // Extract status
+        const isActive = /활성|Active/i.test(block) && !/비활성|Inactive/i.test(block);
 
-        const hasMultipleImages = card.querySelectorAll("img").length > 1;
+        // Extract brand name — look for text after "광고 상세 정보 보기"
+        let brandName = "";
+        const afterDetail = block.split(/광고 상세 정보 보기/);
+        if (afterDetail.length > 1) {
+          const lines = afterDetail[1].split('\n').map(l => l.trim()).filter(Boolean);
+          brandName = lines[0] || "";
+        }
+        if (!brandName) {
+          // Fallback: find first short line that looks like a brand
+          const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 1 && l.length < 40 && !l.includes('라이브러리') && !l.includes('플랫폼') && !l.includes('게재'));
+          brandName = lines[0] || "";
+        }
 
-        const statusTextMatch = cardText.match(/(활성|비활성|Active|Inactive)/i);
-        const startedTextMatch = cardText.match(
-          /(시작일|광고 시작일|Started running on|Started)\s*[:：]?\s*([^\n]+)/i,
-        );
+        // Extract copy text — look for longer text blocks
+        const textLines = block.split('\n').map(l => l.trim()).filter(l => l.length > 20 && !l.includes('라이브러리 ID') && !l.includes('플랫폼') && !l.includes('게재 시작'));
+        const copyText = textLines.slice(0, 3).join(' ');
+
+        // Check for video/carousel hints
+        const hasVideo = /동영상|video/i.test(block);
+        const hasMultipleImages = /슬라이드|carousel/i.test(block);
+
+        // Platform detection
+        const platformText = block;
+
+        // Assign image from collected images
+        const imageUrl = adImages[imgIndex] || null;
+        imgIndex += 1;
 
         output.push({
           snapshotUrl,
-          brandName: brandCandidate,
-          copyText: textBlocks.slice(0, 10).join(" "),
-          imageUrl: imageEl?.src ?? null,
-          hasVideo: Boolean(videoEl),
+          brandName,
+          copyText,
+          imageUrl,
+          hasVideo,
           hasMultipleImages,
-          statusText: statusTextMatch?.[0] ?? null,
-          startedText: startedTextMatch?.[2] ?? startedTextMatch?.[0] ?? null,
-          platformText: cardText,
+          statusText: isActive ? 'Active' : 'Inactive',
+          startedText,
+          platformText,
+          externalId,
         });
       }
 
@@ -290,7 +313,7 @@ async function scrapeAdsForKeyword(page, keyword) {
 
     let newCount = 0;
     for (const ad of adsOnPage) {
-      const externalId = extractExternalId(ad.snapshotUrl);
+      const externalId = ad.externalId || extractExternalId(ad.snapshotUrl);
       if (!externalId) continue;
       if (collected.has(externalId)) continue;
       collected.set(externalId, { ...ad, externalId, keyword });
@@ -379,9 +402,19 @@ async function upsertAds(supabase, rows) {
   return total;
 }
 
-function getKeywordsFromArgs() {
-  const args = process.argv.slice(2).map((item) => item.trim()).filter(Boolean);
-  return args.length > 0 ? args : DEFAULT_KEYWORDS;
+function parseCliArgs() {
+  const raw = process.argv.slice(2);
+  const flags = { connect: false, headful: false, port: 9222 };
+  const keywords = [];
+
+  for (const arg of raw) {
+    if (arg === "--connect") { flags.connect = true; continue; }
+    if (arg === "--headful") { flags.headful = true; continue; }
+    if (arg.startsWith("--port=")) { flags.port = Number(arg.split("=")[1]) || 9222; continue; }
+    if (arg.trim()) keywords.push(arg.trim());
+  }
+
+  return { flags, keywords: keywords.length > 0 ? keywords : DEFAULT_KEYWORDS };
 }
 
 async function run() {
@@ -389,18 +422,46 @@ async function run() {
 
   await loadEnvFromFile();
   const supabase = createSupabaseAdminClient();
-  const keywords = getKeywordsFromArgs();
+  const { flags, keywords } = parseCliArgs();
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    defaultViewport: { width: 1440, height: 1800 },
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+  let browser;
+  let isConnected = false;
 
-  const page = await browser.newPage();
-  await page.setUserAgent(
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-  );
+  if (flags.connect) {
+    // Connect to user's real Chrome browser — use vanilla puppeteer (no stealth needed for real Chrome)
+    const debugUrl = `http://127.0.0.1:${flags.port}`;
+    console.log(`[browser] Connecting to your Chrome at ${debugUrl}...`);
+    console.log(`[browser] Make sure Chrome is running with: --remote-debugging-port=${flags.port}`);
+    try {
+      browser = await puppeteerVanilla.connect({ browserURL: debugUrl, defaultViewport: null });
+      isConnected = true;
+      console.log("[browser] Connected to your real Chrome! (vanilla puppeteer, no stealth)");
+    } catch (err) {
+      console.error(`[browser] Could not connect: ${err.message}`);
+      console.error(`\n[help] Run this first in a NEW terminal:`);
+      console.error(`  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=${flags.port}`);
+      console.error(`  (or: "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=${flags.port})\n`);
+      process.exitCode = 1;
+      return;
+    }
+  } else {
+    // Launch a new browser with stealth (headless by default)
+    browser = await puppeteerExtra.launch({
+      headless: !flags.headful,
+      defaultViewport: { width: 1440, height: 1800 },
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+  }
+
+  const page = isConnected
+    ? await browser.newPage()
+    : await browser.newPage();
+
+  if (!isConnected) {
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    );
+  }
   await page.setExtraHTTPHeaders({
     "accept-language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
   });
@@ -419,7 +480,14 @@ async function run() {
       await randomDelay();
     }
   } finally {
-    await browser.close();
+    if (isConnected) {
+      // Don't close user's browser — just close the tab we opened
+      try { await page.close(); } catch { /* tab may already be closed */ }
+      browser.disconnect();
+      console.log("[browser] Disconnected from your Chrome (browser stays open)");
+    } else {
+      await browser.close();
+    }
   }
 
   const dedupedRows = [];
