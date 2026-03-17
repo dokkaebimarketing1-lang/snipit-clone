@@ -245,10 +245,10 @@ async function scrapeAdsForKeyword(page, keyword) {
       const blocks = bodyText.split(/(?=라이브러리 ID:)/);
       const output = [];
 
-      // Collect all ad images (scontent URLs)
+      // Collect all ad images (scontent URLs) — upgrade to 600x600
       const adImages = Array.from(document.querySelectorAll('img'))
         .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 50)
-        .map(i => i.src);
+        .map(i => i.src.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, 'stp=dst-jpg_s600x600'));
 
       let imgIndex = 0;
 
