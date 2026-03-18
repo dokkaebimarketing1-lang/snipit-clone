@@ -143,6 +143,89 @@ h2 {
 .status.error { background: #fef2f2; color: #991b1b; }
 .loading, .error { font-size: 13px; color: #9ca3af; text-align: center; padding: 20px; }
 
+.contribute-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.contribute-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.contribute-benefit {
+  color: #334FFF;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.contribute-stats {
+  background: #f8faff;
+  border: 1px solid #dbe2ff;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #1f2937;
+  margin-bottom: 12px;
+}
+
+.contribute-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 2px 4px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #d1d5db;
+  transition: background-color 0.2s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  top: 3px;
+  background-color: #fff;
+  transition: transform 0.2s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background: linear-gradient(135deg, #334FFF, #687DFF);
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(18px);
+}
+
+#contribute-status {
+  font-size: 13px;
+  color: #4b5563;
+  font-weight: 600;
+}
+
 /* Content script inject button */
 .snipit-save-btn {
   position: absolute;

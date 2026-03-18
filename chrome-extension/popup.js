@@ -1,13 +1,25 @@
-const SNIPIT_URL = "http://localhost:3000"; // Change to production URL
+const SNIPIT_URL = "https://snipit-clone.vercel.app";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const loginSection = document.getElementById("login-section");
   const boardsSection = document.getElementById("boards-section");
   const statusSection = document.getElementById("status-section");
+  const contributeSection = document.getElementById("contribute-section");
   const loginBtn = document.getElementById("login-btn");
   const saveBtn = document.getElementById("save-btn");
   const logoutBtn = document.getElementById("logout-btn");
   const boardsList = document.getElementById("boards-list");
+  const contributeToggle = document.getElementById("contribute-toggle");
+  const contributeStatus = document.getElementById("contribute-status");
+  const contributeCount = document.getElementById("contribute-count");
+
+  const contributeState = await chrome.storage.local.get(["contributeEnabled", "contributeCount"]);
+  const isContributeEnabled = Boolean(contributeState.contributeEnabled);
+  const monthlyContributeCount = Number(contributeState.contributeCount) || 0;
+
+  contributeToggle.checked = isContributeEnabled;
+  contributeCount.textContent = String(monthlyContributeCount);
+  contributeStatus.textContent = isContributeEnabled ? "기여 활성" : "기여 비활성";
 
   // Check if user is logged in
   const session = await chrome.storage.local.get(["user", "accessToken"]);
@@ -17,7 +29,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadBoards(session.accessToken);
   } else {
     loginSection.classList.remove("hidden");
+    contributeSection.classList.add("hidden");
   }
+
+  contributeToggle.addEventListener("change", async () => {
+    const enabled = contributeToggle.checked;
+    await chrome.storage.local.set({ contributeEnabled: enabled });
+    contributeStatus.textContent = enabled ? "기여 활성" : "기여 비활성";
+  });
 
   loginBtn.addEventListener("click", () => {
     chrome.tabs.create({ url: `${SNIPIT_URL}/auth/callback?next=/` });
@@ -26,6 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   logoutBtn.addEventListener("click", async () => {
     await chrome.storage.local.remove(["user", "accessToken"]);
     boardsSection.classList.add("hidden");
+    contributeSection.classList.add("hidden");
     loginSection.classList.remove("hidden");
   });
 
@@ -70,6 +90,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function showBoardsSection(user) {
     loginSection.classList.add("hidden");
     boardsSection.classList.remove("hidden");
+    contributeSection.classList.remove("hidden");
     document.getElementById("user-avatar").src = user.avatar_url || "";
     document.getElementById("user-name").textContent = user.full_name || user.email || "사용자";
   }
