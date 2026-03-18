@@ -140,45 +140,68 @@ export async function getFeaturedAds(limit = 20): Promise<SearchResult[]> {
   }
 }
 
-async function searchScrapedAds(query: string): Promise<SearchResult[]> {
+export interface SearchOptions {
+  category?: string;
+  sort?: string;
+  page?: number;
+  limit?: number;
+  brandName?: string;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  totalCount: number;
+}
+
+async function searchScrapedAds(query: string, options: SearchOptions = {}): Promise<SearchResponse> {
+  const { category, sort = "scraped_at", page = 1, limit = 24, brandName } = options;
   const trimmedQuery = query.trim();
-  if (!trimmedQuery) return [];
+  const offset = (page - 1) * limit;
 
   const supabase = await createClient();
   const selectColumns =
     "external_id, brand_name, copy_text, image_url, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
 
-  const tsQuery = buildTsQuery(trimmedQuery);
-  const ftsExpression = "to_tsvector('simple', coalesce(brand_name,'') || ' ' || coalesce(copy_text,''))";
+  let dbQuery = supabase
+    .from("scraped_ads")
+    .select(selectColumns, { count: "exact" })
+    .eq("country", "KR");
 
-  if (tsQuery) {
-    const { data, error } = await supabase
-      .from("scraped_ads")
-      .select(selectColumns)
-      .eq("country", "KR")
-      .filter(ftsExpression, "@@", `to_tsquery('simple', '${tsQuery}')`)
-      .order("scraped_at", { ascending: false })
-      .limit(40);
-
-    if (!error && data && data.length > 0) {
-      return mapRowsToSearchResults(data as ScrapedAdRow[]);
+  if (trimmedQuery) {
+    const tsQuery = buildTsQuery(trimmedQuery);
+    const ftsExpression = "to_tsvector('simple', coalesce(brand_name,'') || ' ' || coalesce(copy_text,''))";
+    
+    if (tsQuery) {
+      dbQuery = dbQuery.filter(ftsExpression, "@@", `to_tsquery('simple', '${tsQuery}')`);
+    } else {
+      const ilikeQuery = escapeLike(trimmedQuery);
+      dbQuery = dbQuery.or(`brand_name.ilike.%${ilikeQuery}%,copy_text.ilike.%${ilikeQuery}%`);
     }
   }
 
-  const ilikeQuery = escapeLike(trimmedQuery);
-  const { data, error } = await supabase
-    .from("scraped_ads")
-    .select(selectColumns)
-    .eq("country", "KR")
-    .or(`brand_name.ilike.%${ilikeQuery}%,copy_text.ilike.%${ilikeQuery}%`)
-    .order("scraped_at", { ascending: false })
-    .limit(40);
+  if (category && category !== "전체") {
+    dbQuery = dbQuery.contains("categories", [category]);
+  }
 
-  if (error || !data || data.length === 0) return [];
-  return mapRowsToSearchResults(data as ScrapedAdRow[]);
+  if (brandName) {
+    dbQuery = dbQuery.eq("brand_name", brandName);
+  }
+
+  if (sort === "duration_days") {
+    dbQuery = dbQuery.order("duration_days", { ascending: false, nullsFirst: false });
+  } else if (sort === "brand_name") {
+    dbQuery = dbQuery.order("brand_name", { ascending: true });
+  } else {
+    dbQuery = dbQuery.order("scraped_at", { ascending: false });
+  }
+
+  const { data, error, count } = await dbQuery.range(offset, offset + limit - 1);
+
+  if (error || !data) return { results: [], totalCount: 0 };
+  return { results: mapRowsToSearchResults(data as ScrapedAdRow[]), totalCount: count ?? 0 };
 }
 
-function generateMockResults(query: string): SearchResult[] {
+function generateMockResults(query: string, options: SearchOptions = {}): SearchResponse {
   const platforms = ["meta", "instagram", "google", "tiktok"] as const;
   const mediaTypes = ["photo", "video", "reels", "carousel"] as const;
   const brands = [
@@ -201,16 +224,16 @@ function generateMockResults(query: string): SearchResult[] {
   ];
 
   const seed = query.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const count = 20;
+  const count = options.limit || 24;
   const results: SearchResult[] = [];
 
   for (let i = 0; i < count; i++) {
-    const s = seed + i;
+    const s = seed + i + (options.page || 1) * 100;
     const picId = (s * 7 + 10) % 200 + 10;
     results.push({
       id: `mock-search-${s}-${i}`,
       imageUrl: `https://picsum.photos/id/${picId}/400/500`,
-      brandName: brands[s % brands.length],
+      brandName: options.brandName || brands[s % brands.length],
       platform: platforms[s % platforms.length],
       mediaType: mediaTypes[s % mediaTypes.length],
       status: s % 3 === 0 ? "inactive" : "active",
@@ -220,17 +243,17 @@ function generateMockResults(query: string): SearchResult[] {
       copyText: copies[s % copies.length],
     });
   }
-  return results;
+  return { results, totalCount: 247 };
 }
 
-export async function searchAds(query: string, mode: "similarity" | "copywrite" = "similarity"): Promise<SearchResult[]> {
+export async function searchAds(query: string, mode: "similarity" | "copywrite" = "similarity", options: SearchOptions = {}): Promise<SearchResponse> {
   try {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (user) {
+    if (user && query.trim()) {
       await supabase.from("search_history").insert({
         user_id: user.id,
         query,
@@ -242,11 +265,11 @@ export async function searchAds(query: string, mode: "similarity" | "copywrite" 
   }
 
   try {
-    const dbResults = await searchScrapedAds(query);
-    if (dbResults.length > 0) return dbResults;
+    const dbResults = await searchScrapedAds(query, options);
+    if (dbResults.results.length > 0) return dbResults;
   } catch {
     // Ignore DB search failures and use final mock fallback.
   }
 
-  return generateMockResults(query);
+  return generateMockResults(query, options);
 }

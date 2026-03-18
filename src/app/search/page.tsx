@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Container,
   Title,
@@ -14,6 +15,7 @@ import {
   Text,
   ScrollArea,
   Loader,
+  Button,
 } from "@mantine/core";
 import { IconSearch, IconFilter, IconSortDescending } from "@tabler/icons-react";
 import { mockAds, searchTags } from "@/data/mockAds";
@@ -23,7 +25,11 @@ import { PaywallOverlay } from "@/components/common/PaywallOverlay";
 import { getFeaturedAds } from "@/app/actions/search";
 import { SearchMode, AdCard as AdCardType } from "@/types";
 
+const CATEGORIES = ["전체", "뷰티", "건강식품", "패션", "헬스/운동", "식품/배달", "테크/앱", "리빙", "건강기기", "기타"];
+const TOP_BRANDS = ["올리브영", "무신사", "토스", "마켓컬리", "정관장"];
+
 export default function SearchPage() {
+  const router = useRouter();
   const [searchMode, setSearchMode] = useState<SearchMode>("similarity");
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<AdCardType[]>([]);
@@ -31,6 +37,13 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
   const [hasSearched, setHasSearched] = useState(false);
+  
+  // New state for filtering, sorting, pagination
+  const [category, setCategory] = useState("전체");
+  const [sort, setSort] = useState("scraped_at");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -44,10 +57,12 @@ export default function SearchPage() {
         if (!isMounted) return;
         setPopularResults(source.slice(0, 6));
         setResults(source.slice(6));
+        setTotalCount(source.length - 6);
       } catch {
         if (!isMounted) return;
         setPopularResults(mockAds.slice(0, 6));
         setResults(mockAds.slice(6));
+        setTotalCount(mockAds.length - 6);
       }
 
       if (!isMounted) return;
@@ -61,16 +76,33 @@ export default function SearchPage() {
     };
   }, []);
 
-  const handleSearch = async (query?: string) => {
-    const searchText = query || searchQuery;
-    if (!searchText.trim()) return;
+  const fetchResults = async (
+    query: string,
+    currentCategory: string,
+    currentSort: string,
+    currentPage: number,
+    isLoadMore = false
+  ) => {
+    const searchText = query;
+    
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setIsSearching(true);
+      setHasSearched(true);
+    }
 
-    setIsSearching(true);
-    setHasSearched(true);
     try {
-      const res = await fetch(
-        `/api/search?q=${encodeURIComponent(searchText)}&mode=${searchMode}`
-      );
+      const params = new URLSearchParams({
+        q: searchText,
+        mode: searchMode,
+        category: currentCategory,
+        sort: currentSort,
+        page: currentPage.toString(),
+        limit: "24",
+      });
+
+      const res = await fetch(`/api/search?${params.toString()}`);
       const data = await res.json();
 
       if (data.results && data.results.length > 0) {
@@ -88,17 +120,58 @@ export default function SearchPage() {
             copyText: r.copyText as string,
           })
         );
-        setPopularResults(mapped.slice(0, 6));
-        setResults(mapped.slice(6));
-      } else {
+        
+        if (isLoadMore) {
+          setResults((prev) => [...prev, ...mapped]);
+        } else {
+          setPopularResults(mapped.slice(0, 6));
+          setResults(mapped.slice(6));
+        }
+        setTotalCount(data.totalCount || 0);
+      } else if (!isLoadMore) {
         setPopularResults(mockAds.slice(0, 6));
         setResults(mockAds.slice(6));
+        setTotalCount(mockAds.length - 6);
       }
     } catch {
-      setPopularResults(mockAds.slice(0, 6));
-      setResults(mockAds.slice(6));
+      if (!isLoadMore) {
+        setPopularResults(mockAds.slice(0, 6));
+        setResults(mockAds.slice(6));
+        setTotalCount(mockAds.length - 6);
+      }
     }
+    
     setIsSearching(false);
+    setIsLoadingMore(false);
+  };
+
+  const handleSearch = (query?: string) => {
+    const text = query !== undefined ? query : searchQuery;
+    setPage(1);
+    fetchResults(text, category, sort, 1, false);
+  };
+
+  const handleCategoryChange = (newCategory: string) => {
+    setCategory(newCategory);
+    setPage(1);
+    fetchResults(searchQuery, newCategory, sort, 1, false);
+  };
+
+  const handleSortChange = (newSort: string | null) => {
+    if (!newSort) return;
+    setSort(newSort);
+    setPage(1);
+    fetchResults(searchQuery, category, newSort, 1, false);
+  };
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchResults(searchQuery, category, sort, nextPage, true);
+  };
+
+  const handleBrandClick = (brand: string) => {
+    router.push(`/brand/${encodeURIComponent(brand)}`);
   };
 
   return (
@@ -157,45 +230,49 @@ export default function SearchPage() {
           />
 
           <Group gap="xs" mt="md" justify="center">
-            {searchTags.map((tag) => (
+            <Text size="sm" c="dimmed" mr="xs">인기 브랜드:</Text>
+            {TOP_BRANDS.map((brand) => (
               <Badge
-                key={tag}
+                key={brand}
                 variant="light"
-                color="gray"
+                color="snipitBlue"
                 size="lg"
                 radius="xl"
                 style={{ cursor: "pointer", textTransform: "none" }}
-                onClick={() => {
-                  setSearchQuery(tag);
-                  handleSearch(tag);
-                }}
+                onClick={() => handleBrandClick(brand)}
               >
-                {tag}
+                {brand}
               </Badge>
             ))}
           </Group>
         </Box>
       </Box>
 
+      <Box mb="xl">
+        <ScrollArea scrollbars="x" type="never">
+          <Group gap="xs" wrap="nowrap" style={{ minWidth: "max-content" }}>
+            {CATEGORIES.map((cat) => (
+              <Badge
+                key={cat}
+                variant={category === cat ? "filled" : "outline"}
+                color={category === cat ? "snipitBlue" : "gray"}
+                size="xl"
+                radius="xl"
+                style={{ cursor: "pointer", textTransform: "none" }}
+                onClick={() => handleCategoryChange(cat)}
+              >
+                {cat}
+              </Badge>
+            ))}
+          </Group>
+        </ScrollArea>
+      </Box>
+
       <Group justify="space-between" mb="xl" align="center">
         <Group gap="sm">
-          <Select
-            placeholder="플랫폼 전체"
-            data={["전체", "인스타그램", "메타 라이브러리", "구글", "틱톡"]}
-            defaultValue="전체"
-            radius="md"
-            style={{ width: 160 }}
-          />
-          <Select
-            placeholder="소재 형태"
-            data={["전체", "이미지", "비디오", "캐러셀"]}
-            defaultValue="전체"
-            radius="md"
-            style={{ width: 140 }}
-          />
-          <ActionIcon variant="default" size="input-sm" radius="md">
-            <IconFilter size={18} />
-          </ActionIcon>
+          <Text fw={600} size="lg">
+            검색 결과 {totalCount}개
+          </Text>
         </Group>
 
         <Group gap="xs">
@@ -203,13 +280,18 @@ export default function SearchPage() {
             정렬:
           </Text>
           <Select
-            data={["최신순", "인기순", "저장순"]}
-            defaultValue="최신순"
+            data={[
+              { label: "최신순", value: "scraped_at" },
+              { label: "게재기간순", value: "duration_days" },
+              { label: "브랜드명순", value: "brand_name" },
+            ]}
+            value={sort}
+            onChange={handleSortChange}
             variant="unstyled"
             size="sm"
             rightSection={<IconSortDescending size={16} />}
             styles={{
-              input: { width: 80, fontWeight: 500 },
+              input: { width: 100, fontWeight: 500 },
             }}
           />
         </Group>
@@ -224,30 +306,27 @@ export default function SearchPage() {
         </Box>
       ) : (
         <>
-          <Box mb={60}>
-            <Group justify="space-between" mb="lg">
-              <Group gap="sm">
-                <Title order={3}>
-                  {hasSearched ? "인기 결과" : "자주 저장된 레퍼런스"}
-                </Title>
-                <Text size="sm" c="dimmed">
-                  다른 사용자가 자주 저장한 레퍼런스를 모아봤어요
-                </Text>
+          {hasSearched && popularResults.length > 0 && (
+            <Box mb={60}>
+              <Group justify="space-between" mb="lg">
+                <Group gap="sm">
+                  <Title order={3}>인기 결과</Title>
+                  <Text size="sm" c="dimmed">
+                    다른 사용자가 자주 저장한 레퍼런스를 모아봤어요
+                  </Text>
+                </Group>
               </Group>
-              <Text size="sm" c="dimmed" style={{ cursor: "pointer" }}>
-                다른 레퍼런스 보기
-              </Text>
-            </Group>
-            <ScrollArea scrollbars="x" type="never">
-              <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content" }}>
-                {popularResults.map((ad) => (
-                  <Box key={ad.id} style={{ width: 240, flexShrink: 0 }}>
-                    <AdCard ad={ad} />
-                  </Box>
-                ))}
-              </Group>
-            </ScrollArea>
-          </Box>
+              <ScrollArea scrollbars="x" type="never">
+                <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content" }}>
+                  {popularResults.map((ad) => (
+                    <Box key={ad.id} style={{ width: 240, flexShrink: 0 }}>
+                      <AdCard ad={ad} />
+                    </Box>
+                  ))}
+                </Group>
+              </ScrollArea>
+            </Box>
+          )}
 
           <Box>
             <Title order={3} mb="lg">
@@ -258,6 +337,22 @@ export default function SearchPage() {
                 <AdCard key={ad.id} ad={ad} />
               ))}
             </MasonryGrid>
+            
+            {results.length > 0 && results.length < totalCount && (
+              <Box ta="center" mt={40} mb={20}>
+                <Button 
+                  variant="light" 
+                  color="snipitBlue" 
+                  size="md" 
+                  radius="xl"
+                  onClick={handleLoadMore}
+                  loading={isLoadingMore}
+                >
+                  더 보기
+                </Button>
+              </Box>
+            )}
+            
             <PaywallOverlay />
           </Box>
         </>
