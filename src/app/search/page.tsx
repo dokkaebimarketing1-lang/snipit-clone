@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Container,
@@ -16,13 +16,14 @@ import {
   ScrollArea,
   Loader,
   Button,
+  Anchor,
 } from "@mantine/core";
-import { IconSearch, IconFilter, IconSortDescending } from "@tabler/icons-react";
-import { mockAds, searchTags } from "@/data/mockAds";
+import { IconSearch, IconSortDescending } from "@tabler/icons-react";
+import { mockAds } from "@/data/mockAds";
 import { AdCard } from "@/components/cards/AdCard";
 import { MasonryGrid } from "@/components/common/MasonryGrid";
 import { PaywallOverlay } from "@/components/common/PaywallOverlay";
-import { getFeaturedAds } from "@/app/actions/search";
+import { DiscoveryData } from "@/app/actions/search";
 import { SearchMode, AdCard as AdCardType } from "@/types";
 
 const CATEGORIES = ["전체", "뷰티", "건강식품", "패션", "헬스/운동", "식품/배달", "테크/앱", "리빙", "건강기기", "기타"];
@@ -45,31 +46,28 @@ export default function SearchPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  // Discovery state
+  const [discoveryData, setDiscoveryData] = useState<DiscoveryData | null>(null);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+
   useEffect(() => {
     let isMounted = true;
 
-    const loadFeaturedAds = async () => {
+    const loadDiscoveryData = async () => {
       setIsLoadingFeatured(true);
-
       try {
-        const featured = await getFeaturedAds(20);
-        const source = featured.length > 0 ? featured : mockAds;
+        const res = await fetch("/api/search/discover");
+        const data = await res.json();
         if (!isMounted) return;
-        setPopularResults(source.slice(0, 6));
-        setResults(source.slice(6));
-        setTotalCount(source.length - 6);
-      } catch {
-        if (!isMounted) return;
-        setPopularResults(mockAds.slice(0, 6));
-        setResults(mockAds.slice(6));
-        setTotalCount(mockAds.length - 6);
+        setDiscoveryData(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (isMounted) setIsLoadingFeatured(false);
       }
-
-      if (!isMounted) return;
-      setIsLoadingFeatured(false);
     };
 
-    loadFeaturedAds();
+    loadDiscoveryData();
 
     return () => {
       isMounted = false;
@@ -147,12 +145,24 @@ export default function SearchPage() {
 
   const handleSearch = (query?: string) => {
     const text = query !== undefined ? query : searchQuery;
+    if (text.trim() === "" && category === "전체") {
+      setIsSearchActive(false);
+      setHasSearched(false);
+      return;
+    }
+    setIsSearchActive(true);
     setPage(1);
     fetchResults(text, category, sort, 1, false);
   };
 
   const handleCategoryChange = (newCategory: string) => {
     setCategory(newCategory);
+    if (searchQuery.trim() === "" && newCategory === "전체") {
+      setIsSearchActive(false);
+      setHasSearched(false);
+      return;
+    }
+    setIsSearchActive(true);
     setPage(1);
     fetchResults(searchQuery, newCategory, sort, 1, false);
   };
@@ -161,7 +171,9 @@ export default function SearchPage() {
     if (!newSort) return;
     setSort(newSort);
     setPage(1);
-    fetchResults(searchQuery, category, newSort, 1, false);
+    if (isSearchActive) {
+      fetchResults(searchQuery, category, newSort, 1, false);
+    }
   };
 
   const handleLoadMore = () => {
@@ -271,30 +283,32 @@ export default function SearchPage() {
       <Group justify="space-between" mb="xl" align="center">
         <Group gap="sm">
           <Text fw={600} size="lg">
-            검색 결과 {totalCount}개
+            {isSearchActive ? `검색 결과 ${totalCount}개` : "발견하기"}
           </Text>
         </Group>
 
-        <Group gap="xs">
-          <Text size="sm" c="dimmed">
-            정렬:
-          </Text>
-          <Select
-            data={[
-              { label: "최신순", value: "scraped_at" },
-              { label: "게재기간순", value: "duration_days" },
-              { label: "브랜드명순", value: "brand_name" },
-            ]}
-            value={sort}
-            onChange={handleSortChange}
-            variant="unstyled"
-            size="sm"
-            rightSection={<IconSortDescending size={16} />}
-            styles={{
-              input: { width: 100, fontWeight: 500 },
-            }}
-          />
-        </Group>
+        {isSearchActive && (
+          <Group gap="xs">
+            <Text size="sm" c="dimmed">
+              정렬:
+            </Text>
+            <Select
+              data={[
+                { label: "최신순", value: "scraped_at" },
+                { label: "게재기간순", value: "duration_days" },
+                { label: "브랜드명순", value: "brand_name" },
+              ]}
+              value={sort}
+              onChange={handleSortChange}
+              variant="unstyled"
+              size="sm"
+              rightSection={<IconSortDescending size={16} />}
+              styles={{
+                input: { width: 100, fontWeight: 500 },
+              }}
+            />
+          </Group>
+        )}
       </Group>
 
       {isSearching || isLoadingFeatured ? (
@@ -303,6 +317,67 @@ export default function SearchPage() {
           <Text size="sm" c="dimmed" mt="sm">
             {isSearching ? "검색 중..." : "광고 레퍼런스를 불러오는 중..."}
           </Text>
+        </Box>
+      ) : !isSearchActive && discoveryData ? (
+        <Box>
+          {/* Trending Section */}
+          {discoveryData.trending.length > 0 && (
+            <Box mb={60}>
+              <Group justify="space-between" mb="lg">
+                <Title order={3}>🔥 오래 게재된 = 성과 좋은 광고</Title>
+              </Group>
+              <ScrollArea scrollbars="x" type="never">
+                <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content", paddingBottom: 16 }}>
+                  {discoveryData.trending.map((ad) => (
+                    <Box key={ad.id} style={{ width: 280, flexShrink: 0 }}>
+                      <AdCard ad={ad} />
+                    </Box>
+                  ))}
+                </Group>
+              </ScrollArea>
+            </Box>
+          )}
+
+          {/* Category Sections */}
+          {discoveryData.sections.map((section) => (
+            section.ads.length > 0 && (
+              <Box key={section.category} mb={60}>
+                <Group justify="space-between" mb="lg">
+                  <Title order={3}>{section.emoji} {section.title}</Title>
+                  <Anchor 
+                    component="button" 
+                    onClick={() => handleCategoryChange(section.category)}
+                    size="sm" 
+                    c="snipitBlue"
+                    fw={500}
+                  >
+                    더보기 →
+                  </Anchor>
+                </Group>
+                <ScrollArea scrollbars="x" type="never">
+                  <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content", paddingBottom: 16 }}>
+                    {section.ads.map((ad) => (
+                      <Box key={ad.id} style={{ width: 240, flexShrink: 0 }}>
+                        <AdCard ad={ad} />
+                      </Box>
+                    ))}
+                  </Group>
+                </ScrollArea>
+              </Box>
+            )
+          ))}
+
+          {/* Recent Section */}
+          {discoveryData.recent.length > 0 && (
+            <Box mb={60}>
+              <Title order={3} mb="lg">✨ 최근 수집</Title>
+              <MasonryGrid>
+                {discoveryData.recent.map((ad) => (
+                  <AdCard key={ad.id} ad={ad} />
+                ))}
+              </MasonryGrid>
+            </Box>
+          )}
         </Box>
       ) : (
         <>
@@ -317,7 +392,7 @@ export default function SearchPage() {
                 </Group>
               </Group>
               <ScrollArea scrollbars="x" type="never">
-                <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content" }}>
+                <Group gap="lg" wrap="nowrap" style={{ minWidth: "max-content", paddingBottom: 16 }}>
                   {popularResults.map((ad) => (
                     <Box key={ad.id} style={{ width: 240, flexShrink: 0 }}>
                       <AdCard ad={ad} />

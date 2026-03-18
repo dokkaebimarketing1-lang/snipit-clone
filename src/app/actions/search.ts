@@ -273,3 +273,89 @@ export async function searchAds(query: string, mode: "similarity" | "copywrite" 
 
   return generateMockResults(query, options);
 }
+
+export interface DiscoverySection {
+  title: string;
+  emoji: string;
+  category: string;
+  ads: SearchResult[];
+}
+
+export interface DiscoveryData {
+  trending: SearchResult[];
+  sections: DiscoverySection[];
+  recent: SearchResult[];
+}
+
+export async function getDiscoverySections(): Promise<DiscoveryData> {
+  const categories = [
+    { title: "뷰티 베스트", emoji: "💄", category: "뷰티" },
+    { title: "건강식품 베스트", emoji: "💊", category: "건강식품" },
+    { title: "패션 베스트", emoji: "👗", category: "패션" },
+    { title: "테크/앱 베스트", emoji: "📱", category: "테크/앱" },
+    { title: "헬스/운동 베스트", emoji: "💪", category: "헬스/운동" },
+  ];
+
+  try {
+    const supabase = await createClient();
+    const selectColumns =
+      "external_id, brand_name, copy_text, image_url, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
+
+    // 1. Trending
+    const { data: trendingData } = await supabase
+      .from("scraped_ads")
+      .select(selectColumns)
+      .eq("country", "KR")
+      .order("duration_days", { ascending: false, nullsFirst: false })
+      .limit(10);
+
+    // 2. Recent
+    const { data: recentData } = await supabase
+      .from("scraped_ads")
+      .select(selectColumns)
+      .eq("country", "KR")
+      .order("scraped_at", { ascending: false })
+      .limit(6);
+
+    // 3. Categories
+    const sections: DiscoverySection[] = [];
+    for (const cat of categories) {
+      const { data: catData } = await supabase
+        .from("scraped_ads")
+        .select(selectColumns)
+        .eq("country", "KR")
+        .contains("categories", [cat.category])
+        .order("duration_days", { ascending: false, nullsFirst: false })
+        .limit(8);
+
+      sections.push({
+        title: cat.title,
+        emoji: cat.emoji,
+        category: cat.category,
+        ads: catData ? mapRowsToSearchResults(catData as ScrapedAdRow[]) : [],
+      });
+    }
+
+    return {
+      trending: trendingData ? mapRowsToSearchResults(trendingData as ScrapedAdRow[]) : [],
+      sections,
+      recent: recentData ? mapRowsToSearchResults(recentData as ScrapedAdRow[]) : [],
+    };
+  } catch {
+    // Fallback to mock data
+    const mockTrending = generateMockResults("trending", { limit: 10 }).results;
+    const mockRecent = generateMockResults("recent", { limit: 6 }).results;
+    const mockSections = categories.map((cat) => ({
+      title: cat.title,
+      emoji: cat.emoji,
+      category: cat.category,
+      ads: generateMockResults(cat.category, { limit: 8 }).results,
+    }));
+
+    return {
+      trending: mockTrending,
+      sections: mockSections,
+      recent: mockRecent,
+    };
+  }
+}
