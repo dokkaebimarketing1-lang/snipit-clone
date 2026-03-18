@@ -7,6 +7,7 @@ import {
   IconSparkles,
   IconFlask,
   IconLayoutBoard,
+  IconPuzzle,
   IconShare,
 } from "@tabler/icons-react";
 import { LoginButton } from "@/components/auth/LoginButton";
@@ -26,6 +27,7 @@ const navItems: NavItemProps[] = [
   { icon: IconSparkles, label: "AI 추천", href: "/ai" },
   { icon: IconFlask, label: "실험실", href: "/experiment" },
   { icon: IconLayoutBoard, label: "보드", href: "/board" },
+  { icon: IconPuzzle, label: "확장", href: "/extension" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -123,6 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <Stack gap="sm" style={{ flex: 0 }}>
             <NavLink item={navItems[4]} />
+            <NavLink item={navItems[5]} />
           </Stack>
 
           <Box mb="md" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
