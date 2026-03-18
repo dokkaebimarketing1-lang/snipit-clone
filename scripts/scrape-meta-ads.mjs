@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -203,7 +204,56 @@ function extractExternalId(snapshotUrl) {
   }
 }
 
-async function scrapeAdsForKeyword(page, keyword) {
+function isFacebookCdnImageUrl(url) {
+  if (!url) return false;
+  return /https?:\/\/scontent[^/]*\.fbcdn\.net\//i.test(url)
+    || (url.includes("scontent") && url.includes("fbcdn.net"));
+}
+
+function normalizeImageCacheKey(rawUrl) {
+  if (!rawUrl) return null;
+
+  try {
+    const parsed = new URL(rawUrl);
+    parsed.searchParams.delete("stp");
+    return parsed.toString();
+  } catch {
+    return rawUrl.replace(/([?&])stp=[^&]*/g, "$1").replace(/[?&]$/, "");
+  }
+}
+
+function storeCapturedImage(cache, url, buffer) {
+  if (!url || !buffer) return;
+  cache.set(url, buffer);
+
+  const normalized = normalizeImageCacheKey(url);
+  if (normalized) cache.set(normalized, buffer);
+}
+
+function getCapturedImageBuffer(cache, url) {
+  if (!url) return null;
+  if (cache.has(url)) return cache.get(url);
+
+  const normalized = normalizeImageCacheKey(url);
+  if (normalized && cache.has(normalized)) return cache.get(normalized);
+
+  return null;
+}
+
+async function runWithConcurrency(items, limit, worker) {
+  const queue = [...items];
+  const size = Math.max(1, limit);
+  const runners = Array.from({ length: Math.min(size, queue.length) }, async () => {
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (!item) continue;
+      await worker(item);
+    }
+  });
+  await Promise.all(runners);
+}
+
+async function scrapeAdsForKeyword(page, keyword, supabase) {
   const url = new URL("https://www.facebook.com/ads/library/");
   url.searchParams.set("active_status", "all");
   url.searchParams.set("ad_type", "all");
@@ -211,137 +261,259 @@ async function scrapeAdsForKeyword(page, keyword) {
   url.searchParams.set("q", keyword);
   url.searchParams.set("search_type", "keyword_unordered");
 
+  const cdp = await page.target().createCDPSession();
+  const imageCacheByUrl = new Map();
+  const interceptedImageUrls = new Set();
+  const imageRequestUrlByRequestId = new Map();
+  const pendingImageBodyTasks = new Set();
+
+  await cdp.send("Network.enable");
+  await cdp.send("Fetch.enable", {
+    patterns: [
+      {
+        urlPattern: "*://scontent*.fbcdn.net/*",
+        resourceType: "Image",
+      },
+    ],
+  });
+
+  cdp.on("Fetch.requestPaused", async ({ requestId }) => {
+    try {
+      await cdp.send("Fetch.continueRequest", { requestId });
+    } catch {
+      // ignore paused request continuation issues
+    }
+  });
+
+  cdp.on("Network.responseReceived", ({ requestId, response }) => {
+    if (!response || !isFacebookCdnImageUrl(response.url)) return;
+    imageRequestUrlByRequestId.set(requestId, response.url);
+  });
+
+  cdp.on("Network.loadingFinished", ({ requestId }) => {
+    const responseUrl = imageRequestUrlByRequestId.get(requestId);
+    if (!responseUrl) return;
+
+    const captureTask = (async () => {
+      try {
+        const body = await cdp.send("Network.getResponseBody", { requestId });
+        if (!body || !body.body) return;
+        const buffer = body.base64Encoded
+          ? Buffer.from(body.body, "base64")
+          : Buffer.from(body.body);
+        if (buffer.length > 0) {
+          interceptedImageUrls.add(responseUrl);
+          storeCapturedImage(imageCacheByUrl, responseUrl, buffer);
+        }
+      } catch {
+        // ignore image body capture issues
+      } finally {
+        imageRequestUrlByRequestId.delete(requestId);
+      }
+    })();
+
+    pendingImageBodyTasks.add(captureTask);
+    captureTask.finally(() => pendingImageBodyTasks.delete(captureTask));
+  });
+
+  cdp.on("Network.loadingFailed", ({ requestId }) => {
+    imageRequestUrlByRequestId.delete(requestId);
+  });
+
   console.log(`\n[crawl] Keyword: ${keyword}`);
   console.log(`[crawl] Open: ${url.toString()}`);
 
-  await page.goto(url.toString(), {
-    waitUntil: "networkidle2",
-    timeout: 60000,
-  });
-
-  // Wait for ads to render (Meta Ad Library uses heavy JS rendering)
-  await sleep(8000);
-  await dismissCookiePopup(page);
-
-  // Debug: check if page has ad content
-  const debugCount = await page.evaluate(() => {
-    const text = document.body.innerText || "";
-    return (text.match(/라이브러리 ID:/g) || []).length;
-  });
-  console.log(`[crawl] ${keyword} | page loaded, ${debugCount} ads visible in DOM`);
-
-  const collected = new Map();
-  let roundsWithoutNewAds = 0;
-
-  for (let round = 1; round <= MAX_SCROLL_ROUNDS; round += 1) {
-    const adsOnPage = await page.evaluate(() => {
-      const bodyText = document.body.innerText;
-
-      // Extract all library IDs from page text
-      const idMatches = [...bodyText.matchAll(/라이브러리 ID:\s*(\d+)/g)];
-      if (idMatches.length === 0) return [];
-
-      // Split body text into ad blocks using library ID as delimiter
-      const blocks = bodyText.split(/(?=라이브러리 ID:)/);
-      const output = [];
-
-      // Collect all ad images (scontent URLs) — upgrade to 600x600
-      const adImages = Array.from(document.querySelectorAll('img'))
-        .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 50)
-        .map(i => i.src.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, 'stp=dst-jpg_s600x600'));
-
-      let imgIndex = 0;
-
-      for (const block of blocks) {
-        const idMatch = block.match(/라이브러리 ID:\s*(\d+)/);
-        if (!idMatch) continue;
-
-        const externalId = idMatch[1];
-        const snapshotUrl = `https://www.facebook.com/ads/library/?id=${externalId}`;
-
-        // Extract date
-        const dateMatch = block.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
-        const startedText = dateMatch ? dateMatch[0] : null;
-
-        // Extract status
-        const isActive = /활성|Active/i.test(block) && !/비활성|Inactive/i.test(block);
-
-        // Extract brand name — look for text after "광고 상세 정보 보기"
-        let brandName = "";
-        const afterDetail = block.split(/광고 상세 정보 보기/);
-        if (afterDetail.length > 1) {
-          const lines = afterDetail[1].split('\n').map(l => l.trim()).filter(Boolean);
-          brandName = lines[0] || "";
-        }
-        if (!brandName) {
-          // Fallback: find first short line that looks like a brand
-          const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 1 && l.length < 40 && !l.includes('라이브러리') && !l.includes('플랫폼') && !l.includes('게재'));
-          brandName = lines[0] || "";
-        }
-
-        // Extract copy text — look for longer text blocks
-        const textLines = block.split('\n').map(l => l.trim()).filter(l => l.length > 20 && !l.includes('라이브러리 ID') && !l.includes('플랫폼') && !l.includes('게재 시작'));
-        const copyText = textLines.slice(0, 3).join(' ');
-
-        // Check for video/carousel hints
-        const hasVideo = /동영상|video/i.test(block);
-        const hasMultipleImages = /슬라이드|carousel/i.test(block);
-
-        // Platform detection
-        const platformText = block;
-
-        // Assign image from collected images
-        const imageUrl = adImages[imgIndex] || null;
-        imgIndex += 1;
-
-        output.push({
-          snapshotUrl,
-          brandName,
-          copyText,
-          imageUrl,
-          hasVideo,
-          hasMultipleImages,
-          statusText: isActive ? 'Active' : 'Inactive',
-          startedText,
-          platformText,
-          externalId,
-        });
-      }
-
-      return output;
+  try {
+    await page.goto(url.toString(), {
+      waitUntil: "networkidle2",
+      timeout: 60000,
     });
 
-    let newCount = 0;
-    for (const ad of adsOnPage) {
-      const externalId = ad.externalId || extractExternalId(ad.snapshotUrl);
-      if (!externalId) continue;
-      if (collected.has(externalId)) continue;
-      collected.set(externalId, { ...ad, externalId, keyword });
-      newCount += 1;
+    // Wait for ads to render (Meta Ad Library uses heavy JS rendering)
+    await sleep(8000);
+    await dismissCookiePopup(page);
+
+    // Debug: check if page has ad content
+    const debugCount = await page.evaluate(() => {
+      const text = document.body.innerText || "";
+      return (text.match(/라이브러리 ID:/g) || []).length;
+    });
+    console.log(`[crawl] ${keyword} | page loaded, ${debugCount} ads visible in DOM`);
+
+    const collected = new Map();
+    let roundsWithoutNewAds = 0;
+
+    for (let round = 1; round <= MAX_SCROLL_ROUNDS; round += 1) {
+      const adsOnPage = await page.evaluate(() => {
+        const bodyText = document.body.innerText;
+
+        // Extract all library IDs from page text
+        const idMatches = [...bodyText.matchAll(/라이브러리 ID:\s*(\d+)/g)];
+        if (idMatches.length === 0) return [];
+
+        // Split body text into ad blocks using library ID as delimiter
+        const blocks = bodyText.split(/(?=라이브러리 ID:)/);
+        const output = [];
+
+        // Collect all ad images (scontent URLs) — upgrade to 600x600
+        const adImages = Array.from(document.querySelectorAll('img'))
+          .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 50)
+          .map(i => i.src.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, 'stp=dst-jpg_s600x600'));
+
+        let imgIndex = 0;
+
+        for (const block of blocks) {
+          const idMatch = block.match(/라이브러리 ID:\s*(\d+)/);
+          if (!idMatch) continue;
+
+          const externalId = idMatch[1];
+          const snapshotUrl = `https://www.facebook.com/ads/library/?id=${externalId}`;
+
+          // Extract date
+          const dateMatch = block.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+          const startedText = dateMatch ? dateMatch[0] : null;
+
+          // Extract status
+          const isActive = /활성|Active/i.test(block) && !/비활성|Inactive/i.test(block);
+
+          // Extract brand name — look for text after "광고 상세 정보 보기"
+          let brandName = "";
+          const afterDetail = block.split(/광고 상세 정보 보기/);
+          if (afterDetail.length > 1) {
+            const lines = afterDetail[1].split('\n').map(l => l.trim()).filter(Boolean);
+            brandName = lines[0] || "";
+          }
+          if (!brandName) {
+            // Fallback: find first short line that looks like a brand
+            const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 1 && l.length < 40 && !l.includes('라이브러리') && !l.includes('플랫폼') && !l.includes('게재'));
+            brandName = lines[0] || "";
+          }
+
+          // Extract copy text — look for longer text blocks
+          const textLines = block.split('\n').map(l => l.trim()).filter(l => l.length > 20 && !l.includes('라이브러리 ID') && !l.includes('플랫폼') && !l.includes('게재 시작'));
+          const copyText = textLines.slice(0, 3).join(' ');
+
+          // Check for video/carousel hints
+          const hasVideo = /동영상|video/i.test(block);
+          const hasMultipleImages = /슬라이드|carousel/i.test(block);
+
+          // Platform detection
+          const platformText = block;
+
+          // Assign image from collected images
+          const imageUrl = adImages[imgIndex] || null;
+          imgIndex += 1;
+
+          output.push({
+            snapshotUrl,
+            brandName,
+            copyText,
+            imageUrl,
+            hasVideo,
+            hasMultipleImages,
+            statusText: isActive ? 'Active' : 'Inactive',
+            startedText,
+            platformText,
+            externalId,
+          });
+        }
+
+        return output;
+      });
+
+      let newCount = 0;
+      for (const ad of adsOnPage) {
+        const externalId = ad.externalId || extractExternalId(ad.snapshotUrl);
+        if (!externalId) continue;
+        if (collected.has(externalId)) continue;
+        collected.set(externalId, { ...ad, externalId, keyword });
+        newCount += 1;
+        if (collected.size >= MAX_ADS_PER_KEYWORD) break;
+      }
+
+      console.log(`[crawl] ${keyword} | round ${round}/${MAX_SCROLL_ROUNDS} | +${newCount} | total ${collected.size}`);
+
       if (collected.size >= MAX_ADS_PER_KEYWORD) break;
-    }
 
-    console.log(`[crawl] ${keyword} | round ${round}/${MAX_SCROLL_ROUNDS} | +${newCount} | total ${collected.size}`);
-
-    if (collected.size >= MAX_ADS_PER_KEYWORD) break;
-
-    if (newCount === 0) {
-      roundsWithoutNewAds += 1;
-      if (roundsWithoutNewAds >= 2) {
-        console.log(`[crawl] ${keyword} | stop scrolling (no new ads)`);
-        break;
+      if (newCount === 0) {
+        roundsWithoutNewAds += 1;
+        if (roundsWithoutNewAds >= 2) {
+          console.log(`[crawl] ${keyword} | stop scrolling (no new ads)`);
+          break;
+        }
+      } else {
+        roundsWithoutNewAds = 0;
       }
-    } else {
-      roundsWithoutNewAds = 0;
+
+      await page.evaluate(() => {
+        window.scrollBy({ top: window.innerHeight * 0.9, behavior: "smooth" });
+      });
+      await randomDelay();
     }
 
-    await page.evaluate(() => {
-      window.scrollBy({ top: window.innerHeight * 0.9, behavior: "smooth" });
-    });
-    await randomDelay();
-  }
+    await Promise.allSettled(Array.from(pendingImageBodyTasks));
+    console.log(`[images] Intercepted ${interceptedImageUrls.size} images from network`);
 
-  return Array.from(collected.values());
+    const ads = Array.from(collected.values());
+    const imageCandidates = ads.filter((ad) => ad.externalId && ad.imageUrl);
+    console.log(`[images] Processing ${imageCandidates.length} ad images...`);
+
+    await runWithConcurrency(imageCandidates, 3, async (ad) => {
+      const sourceBuffer = getCapturedImageBuffer(imageCacheByUrl, ad.imageUrl);
+      if (!sourceBuffer) return;
+
+      try {
+        const avifBuffer = await sharp(sourceBuffer)
+          .resize(600, 600, { fit: "inside", withoutEnlargement: true })
+          .avif({ quality: 50 })
+          .toBuffer();
+
+        const targetPath = `${ad.externalId}.avif`;
+        const { error: uploadError } = await supabase.storage
+          .from("ad-images")
+          .upload(targetPath, avifBuffer, {
+            contentType: "image/avif",
+            upsert: true,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("ad-images").getPublicUrl(targetPath);
+
+        if (!publicUrl) {
+          throw new Error("public URL generation failed");
+        }
+
+        ad.permanentImageUrl = publicUrl;
+        ad.imageUrl = publicUrl;
+
+        const sourceKb = sourceBuffer.length / 1024;
+        const avifKb = avifBuffer.length / 1024;
+        const savedPercent = sourceBuffer.length > 0
+          ? Math.max(0, 100 - (avifBuffer.length / sourceBuffer.length) * 100)
+          : 0;
+
+        console.log(
+          `[images]   ✓ ${ad.externalId} | ${sourceKb.toFixed(0)}KB -> ${avifKb.toFixed(0)}KB AVIF (-${savedPercent.toFixed(0)}%)`,
+        );
+      } catch (error) {
+        console.log(`[images]   x ${ad.externalId} | ${error.message}`);
+      }
+    });
+
+    return ads;
+  } finally {
+    cdp.removeAllListeners();
+    try {
+      await cdp.detach();
+    } catch {
+      // ignore CDP cleanup issues
+    }
+  }
 }
 
 function mapToScrapedAdsRow(rawAd) {
@@ -357,7 +529,7 @@ function mapToScrapedAdsRow(rawAd) {
     brand_name: sanitizeText(rawAd.brandName) || "Unknown Advertiser",
     page_id: null,
     copy_text: sanitizeText(rawAd.copyText),
-    image_url: rawAd.imageUrl,
+    image_url: rawAd.permanentImageUrl ?? rawAd.imageUrl,
     video_url: null,
     snapshot_url: rawAd.snapshotUrl,
     platform: normalizePlatform(rawAd.platformText),
@@ -471,7 +643,7 @@ async function run() {
   try {
     for (const keyword of keywords) {
       try {
-        const ads = await scrapeAdsForKeyword(page, keyword);
+        const ads = await scrapeAdsForKeyword(page, keyword, supabase);
         allAds.push(...ads);
         console.log(`[crawl] ${keyword} done: ${ads.length} ads`);
       } catch (error) {
