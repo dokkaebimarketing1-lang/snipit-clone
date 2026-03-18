@@ -355,10 +355,10 @@ async function scrapeAdsForKeyword(page, keyword, supabase) {
         const blocks = bodyText.split(/(?=라이브러리 ID:)/);
         const output = [];
 
-        // Collect all ad images (scontent URLs) — upgrade to 600x600
-        const adImages = Array.from(document.querySelectorAll('img'))
-          .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 50)
-          .map(i => i.src.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, 'stp=dst-jpg_s600x600'));
+      // Collect all ad images (scontent URLs) — only real creatives (>100px), skip tiny logos
+      const adImages = Array.from(document.querySelectorAll('img'))
+        .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 100 && i.naturalHeight > 100)
+        .map(i => i.src.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, 'stp=dst-jpg_s600x600'));
 
         let imgIndex = 0;
 
@@ -459,8 +459,32 @@ async function scrapeAdsForKeyword(page, keyword, supabase) {
     console.log(`[images] Processing ${imageCandidates.length} ad images...`);
 
     await runWithConcurrency(imageCandidates, 3, async (ad) => {
-      const sourceBuffer = getCapturedImageBuffer(imageCacheByUrl, ad.imageUrl);
+      let sourceBuffer = getCapturedImageBuffer(imageCacheByUrl, ad.imageUrl);
       if (!sourceBuffer) return;
+
+      // Check if captured image is a tiny logo (<150px) — skip these
+      try {
+        const meta = await sharp(sourceBuffer).metadata();
+        if (meta.width < 150 || meta.height < 150) {
+          // Try to find a larger image from the same ad in the cache
+          let foundLarger = false;
+          for (const [cachedUrl, cachedBuf] of imageCacheByUrl.entries()) {
+            if (cachedBuf === sourceBuffer) continue;
+            const cachedMeta = await sharp(cachedBuf).metadata();
+            if (cachedMeta.width >= 150 && cachedMeta.height >= 150) {
+              sourceBuffer = cachedBuf;
+              foundLarger = true;
+              break;
+            }
+          }
+          if (!foundLarger) {
+            // Skip this ad — it's a tiny logo, not an ad creative
+            return;
+          }
+        }
+      } catch {
+        return;
+      }
 
       try {
         const avifBuffer = await sharp(sourceBuffer)
