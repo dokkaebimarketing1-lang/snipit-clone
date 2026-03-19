@@ -345,77 +345,188 @@ async function scrapeAdsForKeyword(page, keyword, supabase) {
 
     for (let round = 1; round <= MAX_SCROLL_ROUNDS; round += 1) {
       const adsOnPage = await page.evaluate(() => {
-        const bodyText = document.body.innerText;
+        const ctaCandidates = [
+          "자세히 알아보기",
+          "지금 구매하기",
+          "더 알아보기",
+          "신청하기",
+          "가입하기",
+          "다운로드",
+          "설치",
+          "연락하기",
+          "예약하기",
+          "문의하기",
+        ];
 
-        // Extract all library IDs from page text
-        const idMatches = [...bodyText.matchAll(/라이브러리 ID:\s*(\d+)/g)];
-        if (idMatches.length === 0) return [];
+        function normalizeImageUrl(rawUrl) {
+          if (!rawUrl) return null;
+          return rawUrl.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, "stp=dst-jpg_s600x600");
+        }
 
-        // Split body text into ad blocks using library ID as delimiter
-        const blocks = bodyText.split(/(?=라이브러리 ID:)/);
+        function isExternalLandingHref(href) {
+          if (!href) return false;
+          if (href.startsWith("#") || href.startsWith("javascript:")) return false;
+
+          try {
+            const parsed = new URL(href, window.location.href);
+            const host = parsed.hostname.toLowerCase();
+            return !host.endsWith("facebook.com")
+              && !host.endsWith("fb.com")
+              && !host.endsWith("messenger.com")
+              && !host.endsWith("instagram.com");
+          } catch {
+            return false;
+          }
+        }
+
+        function extractLandingUrl(container) {
+          const anchors = Array.from(container.querySelectorAll("a[href]"));
+          for (const anchor of anchors) {
+            const href = anchor.getAttribute("href") || "";
+            if (!href) continue;
+
+            let parsed;
+            try {
+              parsed = new URL(href, window.location.href);
+            } catch {
+              continue;
+            }
+
+            const host = parsed.hostname.toLowerCase();
+            if (host.endsWith("facebook.com") || host.endsWith("fb.com")) {
+              const redirectUrl = parsed.searchParams.get("u");
+              if (redirectUrl && isExternalLandingHref(redirectUrl)) {
+                try {
+                  return new URL(redirectUrl).toString();
+                } catch {
+                  // ignore malformed redirect URL
+                }
+              }
+              continue;
+            }
+
+            if (isExternalLandingHref(parsed.toString())) {
+              return parsed.toString();
+            }
+          }
+
+          return null;
+        }
+
+        function findAdContainer(startNode) {
+          let current = startNode;
+          while (current && current !== document.body) {
+            if (current.nodeType !== Node.ELEMENT_NODE) {
+              current = current.parentElement;
+              continue;
+            }
+
+            const rect = current.getBoundingClientRect();
+            const height = rect ? rect.height : 0;
+            const text = current.innerText || "";
+            if (height >= 200 && height <= 1200 && /라이브러리 ID:\s*\d+/.test(text)) {
+              return current;
+            }
+
+            current = current.parentElement;
+          }
+
+          return startNode.parentElement || startNode;
+        }
+
+        const idElements = Array.from(document.querySelectorAll("*"))
+          .filter((el) => /라이브러리 ID:\s*\d+/.test(el.textContent || ""));
+
+        if (idElements.length === 0) return [];
+
+        const seenExternalIds = new Set();
         const output = [];
 
-      // Collect all ad images (scontent URLs) — only real creatives (>100px), skip tiny logos
-      const adImages = Array.from(document.querySelectorAll('img'))
-        .filter(i => i.src && i.src.includes('scontent') && i.naturalWidth > 100 && i.naturalHeight > 100)
-        .map(i => i.src.replace(/stp=dst-jpg_s\d+x\d+[^&]*/g, 'stp=dst-jpg_s600x600'));
+        for (const idElement of idElements) {
+          const ownText = idElement.textContent || "";
+          const ownIdMatch = ownText.match(/라이브러리 ID:\s*(\d+)/);
+          if (!ownIdMatch) continue;
 
-        let imgIndex = 0;
+          const externalId = ownIdMatch[1];
+          if (seenExternalIds.has(externalId)) continue;
 
-        for (const block of blocks) {
-          const idMatch = block.match(/라이브러리 ID:\s*(\d+)/);
-          if (!idMatch) continue;
+          const container = findAdContainer(idElement);
+          if (!container) continue;
 
-          const externalId = idMatch[1];
-          const snapshotUrl = `https://www.facebook.com/ads/library/?id=${externalId}`;
+          const containerText = container.innerText || "";
+          if (!containerText.includes(`라이브러리 ID: ${externalId}`)) continue;
 
-          // Extract date
-          const dateMatch = block.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+          const imageUrls = Array.from(container.querySelectorAll("img"))
+            .filter((img) => {
+              if (!img || !img.src) return false;
+              if (!img.src.includes("scontent")) return false;
+              return img.naturalWidth > 100 && img.naturalHeight > 100;
+            })
+            .map((img) => normalizeImageUrl(img.src))
+            .filter(Boolean)
+            .filter((url, idx, arr) => arr.indexOf(url) === idx);
+
+          const lines = containerText
+            .split("\n")
+            .map((line) => line.replace(/\s+/g, " ").trim())
+            .filter(Boolean);
+
+          const contentLines = lines.filter((line) => {
+            if (/^라이브러리 ID\s*:/i.test(line)) return false;
+            if (/^플랫폼\s*:/i.test(line)) return false;
+            if (/^게재 시작\s*:/i.test(line)) return false;
+            return true;
+          });
+
+          const fullCopyText = contentLines.join(" ");
+          const textLines = contentLines.filter((line) => line.length > 20);
+          const copyText = textLines.slice(0, 3).join(" ");
+
+          const ctaText = ctaCandidates.find((cta) => lines.some((line) => line.includes(cta))) || null;
+          const landingUrl = extractLandingUrl(container);
+
+          const dateMatch = containerText.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
           const startedText = dateMatch ? dateMatch[0] : null;
+          const isActive = /활성|Active/i.test(containerText) && !/비활성|Inactive/i.test(containerText);
 
-          // Extract status
-          const isActive = /활성|Active/i.test(block) && !/비활성|Inactive/i.test(block);
-
-          // Extract brand name — look for text after "광고 상세 정보 보기"
           let brandName = "";
-          const afterDetail = block.split(/광고 상세 정보 보기/);
+          const afterDetail = containerText.split(/광고 상세 정보 보기/);
           if (afterDetail.length > 1) {
-            const lines = afterDetail[1].split('\n').map(l => l.trim()).filter(Boolean);
-            brandName = lines[0] || "";
+            const detailLines = afterDetail[1].split("\n").map((line) => line.trim()).filter(Boolean);
+            brandName = detailLines[0] || "";
           }
           if (!brandName) {
-            // Fallback: find first short line that looks like a brand
-            const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 1 && l.length < 40 && !l.includes('라이브러리') && !l.includes('플랫폼') && !l.includes('게재'));
-            brandName = lines[0] || "";
+            const brandCandidates = lines.filter((line) => {
+              if (line.length <= 1 || line.length >= 40) return false;
+              if (line.includes("라이브러리")) return false;
+              if (line.includes("플랫폼")) return false;
+              if (line.includes("게재")) return false;
+              return true;
+            });
+            brandName = brandCandidates[0] || "";
           }
 
-          // Extract copy text — look for longer text blocks
-          const textLines = block.split('\n').map(l => l.trim()).filter(l => l.length > 20 && !l.includes('라이브러리 ID') && !l.includes('플랫폼') && !l.includes('게재 시작'));
-          const copyText = textLines.slice(0, 3).join(' ');
-
-          // Check for video/carousel hints
-          const hasVideo = /동영상|video/i.test(block);
-          const hasMultipleImages = /슬라이드|carousel/i.test(block);
-
-          // Platform detection
-          const platformText = block;
-
-          // Assign image from collected images
-          const imageUrl = adImages[imgIndex] || null;
-          imgIndex += 1;
+          const hasVideo = /동영상|video/i.test(containerText);
+          const hasMultipleImages = imageUrls.length > 1 || /슬라이드|carousel/i.test(containerText);
 
           output.push({
-            snapshotUrl,
+            snapshotUrl: `https://www.facebook.com/ads/library/?id=${externalId}`,
             brandName,
             copyText,
-            imageUrl,
+            fullCopyText,
+            imageUrls,
+            imageUrl: imageUrls[0] || null,
+            landingUrl,
+            ctaText,
             hasVideo,
             hasMultipleImages,
-            statusText: isActive ? 'Active' : 'Inactive',
+            statusText: isActive ? "Active" : "Inactive",
             startedText,
-            platformText,
+            platformText: containerText,
             externalId,
           });
+
+          seenExternalIds.add(externalId);
         }
 
         return output;
@@ -455,77 +566,114 @@ async function scrapeAdsForKeyword(page, keyword, supabase) {
     console.log(`[images] Intercepted ${interceptedImageUrls.size} images from network`);
 
     const ads = Array.from(collected.values());
-    const imageCandidates = ads.filter((ad) => ad.externalId && ad.imageUrl);
-    console.log(`[images] Processing ${imageCandidates.length} ad images...`);
+    const imageCandidates = ads.filter((ad) => {
+      if (!ad.externalId) return false;
+      if (Array.isArray(ad.imageUrls) && ad.imageUrls.length > 0) return true;
+      return Boolean(ad.imageUrl);
+    });
+    console.log(`[images] Processing ${imageCandidates.length} ad image sets...`);
 
     await runWithConcurrency(imageCandidates, 3, async (ad) => {
-      let sourceBuffer = getCapturedImageBuffer(imageCacheByUrl, ad.imageUrl);
-      if (!sourceBuffer) return;
+      const sourceImageUrls = Array.isArray(ad.imageUrls) && ad.imageUrls.length > 0
+        ? ad.imageUrls
+        : ad.imageUrl
+          ? [ad.imageUrl]
+          : [];
 
-      // Check if captured image is a tiny logo (<150px) — skip these
-      try {
-        const meta = await sharp(sourceBuffer).metadata();
-        if (meta.width < 150 || meta.height < 150) {
-          // Try to find a larger image from the same ad in the cache
-          let foundLarger = false;
-          for (const [cachedUrl, cachedBuf] of imageCacheByUrl.entries()) {
-            if (cachedBuf === sourceBuffer) continue;
-            const cachedMeta = await sharp(cachedBuf).metadata();
-            if (cachedMeta.width >= 150 && cachedMeta.height >= 150) {
-              sourceBuffer = cachedBuf;
-              foundLarger = true;
-              break;
+      if (sourceImageUrls.length === 0) return;
+
+      const permanentImageUrls = [];
+
+      for (let index = 0; index < sourceImageUrls.length; index += 1) {
+        const sourceImageUrl = sourceImageUrls[index];
+        let sourceBuffer = getCapturedImageBuffer(imageCacheByUrl, sourceImageUrl);
+        if (!sourceBuffer) continue;
+
+        try {
+          const meta = await sharp(sourceBuffer).metadata();
+          if (meta.width < 150 || meta.height < 150) {
+            let foundLarger = false;
+
+            for (const candidateUrl of sourceImageUrls) {
+              const candidateBuffer = getCapturedImageBuffer(imageCacheByUrl, candidateUrl);
+              if (!candidateBuffer || candidateBuffer === sourceBuffer) continue;
+              const candidateMeta = await sharp(candidateBuffer).metadata();
+              if (candidateMeta.width >= 150 && candidateMeta.height >= 150) {
+                sourceBuffer = candidateBuffer;
+                foundLarger = true;
+                break;
+              }
+            }
+
+            if (!foundLarger) {
+              for (const [, cachedBuf] of imageCacheByUrl.entries()) {
+                if (cachedBuf === sourceBuffer) continue;
+                const cachedMeta = await sharp(cachedBuf).metadata();
+                if (cachedMeta.width >= 150 && cachedMeta.height >= 150) {
+                  sourceBuffer = cachedBuf;
+                  foundLarger = true;
+                  break;
+                }
+              }
+            }
+
+            if (!foundLarger) {
+              continue;
             }
           }
-          if (!foundLarger) {
-            // Skip this ad — it's a tiny logo, not an ad creative
-            return;
-          }
+        } catch {
+          continue;
         }
-      } catch {
-        return;
+
+        try {
+          const avifBuffer = await sharp(sourceBuffer)
+            .resize(600, 600, { fit: "inside", withoutEnlargement: true })
+            .avif({ quality: 50 })
+            .toBuffer();
+
+          const targetPath = `${ad.externalId}_${index}.avif`;
+          const { error: uploadError } = await supabase.storage
+            .from("ad-images")
+            .upload(targetPath, avifBuffer, {
+              contentType: "image/avif",
+              upsert: true,
+            });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("ad-images").getPublicUrl(targetPath);
+
+          if (!publicUrl) {
+            throw new Error("public URL generation failed");
+          }
+
+          permanentImageUrls.push(publicUrl);
+
+          const sourceKb = sourceBuffer.length / 1024;
+          const avifKb = avifBuffer.length / 1024;
+          const savedPercent = sourceBuffer.length > 0
+            ? Math.max(0, 100 - (avifBuffer.length / sourceBuffer.length) * 100)
+            : 0;
+
+          console.log(
+            `[images]   ✓ ${ad.externalId}_${index} | ${sourceKb.toFixed(0)}KB -> ${avifKb.toFixed(0)}KB AVIF (-${savedPercent.toFixed(0)}%)`,
+          );
+        } catch (error) {
+          console.log(`[images]   x ${ad.externalId}_${index} | ${error.message}`);
+        }
       }
 
-      try {
-        const avifBuffer = await sharp(sourceBuffer)
-          .resize(600, 600, { fit: "inside", withoutEnlargement: true })
-          .avif({ quality: 50 })
-          .toBuffer();
-
-        const targetPath = `${ad.externalId}.avif`;
-        const { error: uploadError } = await supabase.storage
-          .from("ad-images")
-          .upload(targetPath, avifBuffer, {
-            contentType: "image/avif",
-            upsert: true,
-          });
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("ad-images").getPublicUrl(targetPath);
-
-        if (!publicUrl) {
-          throw new Error("public URL generation failed");
-        }
-
-        ad.permanentImageUrl = publicUrl;
-        ad.imageUrl = publicUrl;
-
-        const sourceKb = sourceBuffer.length / 1024;
-        const avifKb = avifBuffer.length / 1024;
-        const savedPercent = sourceBuffer.length > 0
-          ? Math.max(0, 100 - (avifBuffer.length / sourceBuffer.length) * 100)
-          : 0;
-
-        console.log(
-          `[images]   ✓ ${ad.externalId} | ${sourceKb.toFixed(0)}KB -> ${avifKb.toFixed(0)}KB AVIF (-${savedPercent.toFixed(0)}%)`,
-        );
-      } catch (error) {
-        console.log(`[images]   x ${ad.externalId} | ${error.message}`);
+      ad.permanentImageUrls = permanentImageUrls;
+      if (permanentImageUrls.length > 0) {
+        ad.imageUrls = permanentImageUrls;
+        ad.permanentImageUrl = permanentImageUrls[0];
+        ad.imageUrl = permanentImageUrls[0];
+      } else {
+        ad.imageUrls = sourceImageUrls;
       }
     });
 
@@ -554,6 +702,10 @@ function mapToScrapedAdsRow(rawAd) {
     page_id: null,
     copy_text: sanitizeText(rawAd.copyText),
     image_url: rawAd.permanentImageUrl ?? rawAd.imageUrl,
+    image_urls: rawAd.permanentImageUrls ?? rawAd.imageUrls ?? [],
+    landing_url: sanitizeText(rawAd.landingUrl) || null,
+    cta_text: sanitizeText(rawAd.ctaText) || null,
+    full_copy_text: sanitizeText(rawAd.fullCopyText) || null,
     video_url: null,
     snapshot_url: rawAd.snapshotUrl,
     platform: normalizePlatform(rawAd.platformText),

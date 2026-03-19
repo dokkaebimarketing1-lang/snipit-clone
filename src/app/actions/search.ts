@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 interface SearchResult {
   id: string;
   imageUrl: string;
+  imageUrls: string[];
   brandName: string;
   platform: "meta" | "instagram" | "google" | "tiktok";
   mediaType: "photo" | "video" | "reels" | "carousel";
@@ -13,13 +14,20 @@ interface SearchResult {
   durationDays: number;
   isSponsored: boolean;
   copyText: string;
+  fullCopyText: string;
+  landingUrl: string | null;
+  ctaText: string | null;
 }
 
 interface ScrapedAdRow {
   external_id: string | null;
   brand_name: string | null;
   copy_text: string | null;
+  full_copy_text: string | null;
   image_url: string | null;
+  image_urls: string[] | null;
+  landing_url: string | null;
+  cta_text: string | null;
   platform: string | null;
   media_type: string | null;
   status: string | null;
@@ -93,9 +101,13 @@ function mapRowsToSearchResults(rows: ScrapedAdRow[]): SearchResult[] {
     const status: "active" | "inactive" = (row.status ?? "").toLowerCase() === "inactive" ? "inactive" : "active";
     const publishedAt = formatDateString(row.started_at ?? row.scraped_at);
 
+    const imageUrls = (row.image_urls ?? []).filter(Boolean);
+    const imageUrl = imageUrls[0] ?? row.image_url ?? buildFallbackImage(id);
+
     return {
       id,
-      imageUrl: row.image_url ?? buildFallbackImage(id),
+      imageUrl,
+      imageUrls: imageUrls.length > 0 ? imageUrls : (row.image_url ? [row.image_url] : []),
       brandName: row.brand_name?.trim() || "Meta Advertiser",
       platform: normalizePlatform(row.platform),
       mediaType: normalizeMediaType(row.media_type),
@@ -104,6 +116,9 @@ function mapRowsToSearchResults(rows: ScrapedAdRow[]): SearchResult[] {
       durationDays: row.duration_days ?? getDurationDays(row.started_at, row.ended_at, status),
       isSponsored: row.is_sponsored ?? true,
       copyText: row.copy_text?.trim() || "광고 문구를 불러오지 못했습니다.",
+      fullCopyText: row.full_copy_text?.trim() || row.copy_text?.trim() || "",
+      landingUrl: row.landing_url?.trim() || null,
+      ctaText: row.cta_text?.trim() || null,
     };
   });
 }
@@ -123,7 +138,7 @@ export async function getFeaturedAds(limit = 20): Promise<SearchResult[]> {
   try {
     const supabase = await createClient();
     const selectColumns =
-      "external_id, brand_name, copy_text, image_url, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
+      "external_id, brand_name, copy_text, full_copy_text, image_url, image_urls, landing_url, cta_text, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
 
     const { data, error } = await supabase
       .from("scraped_ads")
@@ -160,7 +175,7 @@ async function searchScrapedAds(query: string, options: SearchOptions = {}): Pro
 
   const supabase = await createClient();
   const selectColumns =
-    "external_id, brand_name, copy_text, image_url, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
+    "external_id, brand_name, copy_text, full_copy_text, image_url, image_urls, landing_url, cta_text, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
 
   let dbQuery = supabase
     .from("scraped_ads")
@@ -253,7 +268,7 @@ export async function getDiscoverySections(): Promise<DiscoveryData> {
   try {
     const supabase = await createClient();
     const selectColumns =
-      "external_id, brand_name, copy_text, image_url, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
+      "external_id, brand_name, copy_text, full_copy_text, image_url, image_urls, landing_url, cta_text, platform, media_type, status, started_at, ended_at, duration_days, is_sponsored, scraped_at";
 
     // 1. Trending
     const { data: trendingData } = await supabase

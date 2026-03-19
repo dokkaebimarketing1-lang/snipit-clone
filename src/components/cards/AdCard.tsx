@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Anchor, Box, Card, Group, Image, Text } from "@mantine/core";
+import { Carousel } from "@mantine/carousel";
+import "@mantine/carousel/styles.css";
 import {
   IconCalendar,
   IconExternalLink,
@@ -46,8 +48,53 @@ function formatDate(date: string): string {
 export function AdCard({ ad }: AdCardProps) {
   const MediaIcon = mediaTypeIcon[ad.mediaType];
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const [failedCarouselImages, setFailedCarouselImages] = useState<string[]>([]);
   const snapshotUrl = useMemo(() => `https://www.facebook.com/ads/library/?id=${encodeURIComponent(ad.id)}`, [ad.id]);
-  const hasImageError = failedImageUrl === ad.imageUrl;
+  
+  const isCarousel = ad.imageUrls && ad.imageUrls.length > 1;
+  const hasImageError = isCarousel
+    ? ad.imageUrls!.every(url => failedCarouselImages.includes(url))
+    : failedImageUrl === ad.imageUrl;
+
+  const renderPlaceholder = (showLink = true) => (
+    <Box
+      style={{
+        width: "100%",
+        aspectRatio: "4 / 5",
+        background: "linear-gradient(160deg, #f3f4f6 0%, #e5e7eb 100%)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: 16,
+      }}
+    >
+      <Box
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          backgroundColor: "#334155",
+          color: "#ffffff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: 700,
+        }}
+      >
+        {ad.brandName.charAt(0) || "A"}
+      </Box>
+      <Text size="sm" fw={600} ta="center" lineClamp={1} c="dark.6">
+        {ad.brandName}
+      </Text>
+      {showLink && (
+        <Anchor href={snapshotUrl} target="_blank" rel="noreferrer" size="xs" fw={600} c="blue.7" underline="hover">
+          광고 보기
+        </Anchor>
+      )}
+    </Box>
+  );
 
   return (
     <Card
@@ -76,41 +123,43 @@ export function AdCard({ ad }: AdCardProps) {
     >
       <Card.Section style={{ position: "relative" }}>
         {hasImageError ? (
-          <Box
-            style={{
-              width: "100%",
-              aspectRatio: "4 / 5",
-              background: "linear-gradient(160deg, #f3f4f6 0%, #e5e7eb 100%)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              padding: 16,
+          renderPlaceholder(true)
+        ) : isCarousel ? (
+          <Carousel
+            withIndicators
+            emblaOptions={{ loop: true }}
+            styles={{
+              indicator: {
+                width: 6,
+                height: 6,
+                transition: 'width 250ms ease',
+                backgroundColor: 'rgba(255, 255, 255, 0.5)',
+                '&[data-active]': {
+                  width: 16,
+                  backgroundColor: '#ffffff',
+                },
+              },
+              indicators: {
+                bottom: 10,
+              }
             }}
           >
-            <Box
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: "50%",
-                backgroundColor: "#334155",
-                color: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-              }}
-            >
-              {ad.brandName.charAt(0) || "A"}
-            </Box>
-            <Text size="sm" fw={600} ta="center" lineClamp={1} c="dark.6">
-              {ad.brandName}
-            </Text>
-            <Anchor href={snapshotUrl} target="_blank" rel="noreferrer" size="xs" fw={600} c="blue.7" underline="hover">
-              광고 보기
-            </Anchor>
-          </Box>
+            {ad.imageUrls!.map((url, index) => (
+              <Carousel.Slide key={url}>
+                {failedCarouselImages.includes(url) ? (
+                  renderPlaceholder(false)
+                ) : (
+                  <Image
+                    src={url}
+                    alt={`${ad.brandName} - ${index + 1}`}
+                    loading="lazy"
+                    onError={() => setFailedCarouselImages(prev => [...prev, url])}
+                    style={{ width: "100%", height: "auto", display: "block" }}
+                  />
+                )}
+              </Carousel.Slide>
+            ))}
+          </Carousel>
         ) : (
           <Image
             src={ad.imageUrl}

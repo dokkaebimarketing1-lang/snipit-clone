@@ -107,6 +107,7 @@ export default function SearchPage() {
           (r: Record<string, unknown>) => ({
             id: r.id as string,
             imageUrl: r.imageUrl as string,
+            imageUrls: (r.imageUrls as string[]) ?? [],
             brandName: r.brandName as string,
             platform: r.platform as string,
             mediaType: r.mediaType as string,
@@ -115,6 +116,9 @@ export default function SearchPage() {
             durationDays: r.durationDays as number,
             isSponsored: r.isSponsored as boolean,
             copyText: r.copyText as string,
+            fullCopyText: (r.fullCopyText as string) ?? "",
+            landingUrl: (r.landingUrl as string) ?? null,
+            ctaText: (r.ctaText as string) ?? null,
           })
         );
         

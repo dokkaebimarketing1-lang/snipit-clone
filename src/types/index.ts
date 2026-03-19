@@ -9,6 +9,7 @@ export type SearchMode = "similarity" | "copywrite";
 export interface AdCard {
   id: string;
   imageUrl: string;
+  imageUrls?: string[];
   brandName: string;
   platform: Platform;
   mediaType: MediaType;
@@ -19,6 +20,9 @@ export interface AdCard {
   sponsorName?: string;
   externalUrl?: string;
   copyText?: string;
+  fullCopyText?: string | null;
+  landingUrl?: string | null;
+  ctaText?: string | null;
   likes?: number;
   comments?: number;
   views?: number;
