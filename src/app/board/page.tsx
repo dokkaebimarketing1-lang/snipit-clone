@@ -29,13 +29,12 @@ import {
   IconShare,
 } from "@tabler/icons-react";
 import { useAuth } from "@/hooks/useAuth";
-import { mockBoards, mockFolders } from "@/data/mockAds";
 import { Board, Folder } from "@/types";
 
 export default function BoardPage() {
   const { user } = useAuth();
-  const [boards, setBoards] = useState<Board[]>(mockBoards);
-  const [folders, setFolders] = useState<Folder[]>(mockFolders);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
 
   // Modal states
   const [boardOpened, { open: openBoard, close: closeBoard }] =
@@ -97,7 +96,7 @@ export default function BoardPage() {
         );
       }
     } catch {
-      // Fall back to mock data if Supabase not configured
+      // Supabase not configured — keep empty state
     }
   }, [user]);
 
@@ -105,11 +104,11 @@ export default function BoardPage() {
     loadData();
   }, [loadData]);
 
-  // Reset to mock data when logged out
+  // Clear data when logged out
   useEffect(() => {
     if (!user) {
-      setBoards(mockBoards);
-      setFolders(mockFolders);
+      setBoards([]);
+      setFolders([]);
     }
   }, [user]);
 

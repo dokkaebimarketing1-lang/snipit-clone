@@ -29,9 +29,8 @@ import {
   IconPlayerPause,
   IconClock,
 } from "@tabler/icons-react";
-import { mockCompetitors, mockMonitoringStats } from "@/data/mockAds";
 import { useAuth } from "@/hooks/useAuth";
-import { Platform } from "@/types";
+import { Competitor, MonitoringStats, Platform } from "@/types";
 
 const platformIcons: Record<Platform, React.ReactNode> = {
   meta: <IconBrandMeta size={16} />,
@@ -135,35 +134,44 @@ function MonitoringMarketingIntro() {
   );
 }
 
+const emptyStats: MonitoringStats = {
+  totalAds: 0,
+  activeAds: 0,
+  inactiveAds: 0,
+  avgDuration: 0,
+  mediaDistribution: { photo: 0, video: 0, carousel: 0 },
+  dailyAdCounts: [],
+};
+
 export default function MonitoringPage() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<string | null>("meta");
-  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(
-    mockCompetitors[0].id
-  );
+  const [competitors] = useState<Competitor[]>([]);
+  const [stats] = useState<MonitoringStats>(emptyStats);
+  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
 
-  const filteredCompetitors = mockCompetitors.filter(
+  const filteredCompetitors = competitors.filter(
     (c) => activeTab === "all" || c.platform === activeTab
   );
 
-  const selectedCompData = mockCompetitors.find(
+  const selectedCompData = competitors.find(
     (c) => c.id === selectedCompetitor
   );
 
   const donutData = [
     {
       name: "이미지",
-      value: mockMonitoringStats.mediaDistribution.photo,
+      value: stats.mediaDistribution.photo,
       color: "blue.6",
     },
     {
       name: "영상",
-      value: mockMonitoringStats.mediaDistribution.video,
+      value: stats.mediaDistribution.video,
       color: "teal.6",
     },
     {
       name: "캐러셀",
-      value: mockMonitoringStats.mediaDistribution.carousel,
+      value: stats.mediaDistribution.carousel,
       color: "yellow.6",
     },
   ];
@@ -293,7 +301,7 @@ export default function MonitoringPage() {
                     </ThemeIcon>
                   </Group>
                   <Text size="xl" fw={700}>
-                    {mockMonitoringStats.totalAds}
+                    {stats.totalAds}
                   </Text>
                 </Paper>
                 <Paper withBorder p="md" radius="md">
@@ -306,7 +314,7 @@ export default function MonitoringPage() {
                     </ThemeIcon>
                   </Group>
                   <Text size="xl" fw={700} c="blue">
-                    {mockMonitoringStats.activeAds}
+                    {stats.activeAds}
                   </Text>
                 </Paper>
                 <Paper withBorder p="md" radius="md">
@@ -319,7 +327,7 @@ export default function MonitoringPage() {
                     </ThemeIcon>
                   </Group>
                   <Text size="xl" fw={700}>
-                    {mockMonitoringStats.inactiveAds}
+                    {stats.inactiveAds}
                   </Text>
                 </Paper>
                 <Paper withBorder p="md" radius="md">
@@ -332,7 +340,7 @@ export default function MonitoringPage() {
                     </ThemeIcon>
                   </Group>
                   <Text size="xl" fw={700}>
-                    {mockMonitoringStats.avgDuration}일
+                    {stats.avgDuration}일
                   </Text>
                 </Paper>
               </SimpleGrid>
@@ -344,7 +352,7 @@ export default function MonitoringPage() {
                   </Text>
                   <AreaChart
                     h={250}
-                    data={mockMonitoringStats.dailyAdCounts}
+                    data={stats.dailyAdCounts}
                     dataKey="date"
                     series={[{ name: "count", color: "blue.6" }]}
                     curveType="monotone"

@@ -19,7 +19,6 @@ import {
   Anchor,
 } from "@mantine/core";
 import { IconSearch, IconSortDescending } from "@tabler/icons-react";
-import { mockAds } from "@/data/mockAds";
 import { AdCard } from "@/components/cards/AdCard";
 import { MasonryGrid } from "@/components/common/MasonryGrid";
 import { PaywallOverlay } from "@/components/common/PaywallOverlay";
@@ -127,15 +126,15 @@ export default function SearchPage() {
         }
         setTotalCount(data.totalCount || 0);
       } else if (!isLoadMore) {
-        setPopularResults(mockAds.slice(0, 6));
-        setResults(mockAds.slice(6));
-        setTotalCount(mockAds.length - 6);
+        setPopularResults([]);
+        setResults([]);
+        setTotalCount(0);
       }
     } catch {
       if (!isLoadMore) {
-        setPopularResults(mockAds.slice(0, 6));
-        setResults(mockAds.slice(6));
-        setTotalCount(mockAds.length - 6);
+        setPopularResults([]);
+        setResults([]);
+        setTotalCount(0);
       }
     }
     

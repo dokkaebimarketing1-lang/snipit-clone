@@ -15,7 +15,6 @@ import {
   Paper,
   TextInput,
   List,
-  Divider,
   Table,
 } from "@mantine/core";
 import {
@@ -29,8 +28,6 @@ import {
   IconHeart,
   IconMessageCircle,
 } from "@tabler/icons-react";
-import { mockAds } from "@/data/mockAds";
-
 export default function ExperimentPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showResult, setShowResult] = useState(false);
@@ -57,8 +54,6 @@ export default function ExperimentPage() {
       setShowComparisonResult(true);
     }, 1200);
   };
-
-  const similarAds = mockAds.slice(10, 14);
 
   return (
     <Stack gap="xl">
@@ -117,20 +112,7 @@ export default function ExperimentPage() {
               시작하기
             </Button>
 
-            <Divider my="sm" label="샘플 결과" labelPosition="center" />
 
-            <SimpleGrid cols={2} spacing="sm">
-              {similarAds.map((ad) => (
-                <Card key={ad.id} withBorder padding="xs" radius="sm">
-                  <Card.Section>
-                    <Image src={ad.imageUrl} height={120} alt={ad.brandName} />
-                  </Card.Section>
-                  <Text size="xs" fw={500} mt="xs" truncate>
-                    {ad.brandName}
-                  </Text>
-                </Card>
-              ))}
-            </SimpleGrid>
           </Stack>
         </Card>
 

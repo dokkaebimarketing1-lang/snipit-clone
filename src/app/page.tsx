@@ -3,7 +3,7 @@
 import { Container, Title, Text, TextInput, Badge, Group, Card, SimpleGrid, Box, Button, ActionIcon, Grid, Image, Anchor, Loader } from "@mantine/core";
 import { IconSearch } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
-import { mockBlogPosts } from "@/data/mockAds";
+
 
 export default function HomePage() {
   const router = useRouter();
@@ -272,9 +272,18 @@ export default function HomePage() {
           <Title order={1} fw={900} mb="xs">SNIPIT LOG</Title>
           <Text c="dimmed" mb="xl">베타테스트를 거치며 스니핏팀이 고군분투해온 이야기, 유저 분들을 위한 스니핏팀의 편지 등 다양한 이야기를 들려드려요.</Text>
           <SimpleGrid cols={3} spacing="lg">
-            {mockBlogPosts.map((post) => (
+            {[
+              { id: "1", category: "제품스토리", title: "광고 레퍼런스 검색 통합 업데이트: 이미지 검색과 카피 검색 통합·필터·UI/UX 개선", date: "2026.03.04", description: "광고 레퍼런스 검색을 통합해 이미지 검색과 카피 검색을 한 번에 탐색하고, 필터와 탐색 UI를 더 빠르게 개선했습니다." },
+              { id: "2", category: "제품스토리", title: "경쟁사 광고 분석: 메타 광고 라이브러리 랜딩페이지 통계 및 인스타그램 파트너십(PA) 광고 지표 업데이트", date: "2026.02.23", description: "메타 광고 라이브러리 경쟁사 모니터링에 랜딩페이지 URL 통계와 인스타그램 파트너십 광고 지표를 추가해 인사이트 파악 속도를 높였습니다." },
+              { id: "3", category: "제품스토리", title: "지원 플랫폼 확장: TikTok 검색·모니터링 기능 업데이트", date: "2026.02.12", description: "이제 스니핏에서 TikTok 광고도 검색하고 경쟁사 신규 소재를 자동 모니터링하며 트렌드를 빠르게 확인할 수 있습니다." },
+              { id: "4", category: "제품스토리", title: "인스타그램 계정 분석부터 경쟁사 모니터링 대시보드까지 – Instagram 분석 기능 업데이트", date: "2026.02.09", description: "계정 인게이지먼트, 콘텐츠 유형, 성과 상위 게시물을 구조화된 리포트로 확인할 수 있는 Instagram 분석 기능을 제공합니다." },
+              { id: "5", category: "제품스토리", title: "지원 플랫폼 확장: Google Ads 검색·모니터링 & 릴스 스크립트 자동 생성 기능 업데이트", date: "2026.02.05", description: "Google Ads 지원이 추가되어 메타·인스타그램·구글 광고를 한 번에 탐색하고, 릴스 스크립트를 자동 생성할 수 있습니다." },
+              { id: "6", category: "연결의 기록", title: "신규 프로모션 : 스니핏 플랜 7일 무료 체험 시작 안내", date: "2026.02.04", description: "신규 플랜 도입 기념으로 결제 전 7일 무료 체험을 제공하며, 팀 온보딩 가이드와 추천 레퍼런스 큐레이션을 함께 지원합니다." },
+            ].map((post) => (
               <Card key={post.id} withBorder padding={0} radius="md" style={{cursor:"pointer"}}>
-                <Image src={post.imageUrl} height={160} fit="cover" />
+                <Box h={160} style={{ background: "linear-gradient(135deg, #334FFF 0%, #687DFF 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Text c="white" fw={700} size="sm">{post.category}</Text>
+                </Box>
                 <Box p="md">
                   <Group gap="xs" mb="xs">
                     <Badge variant="outline" size="xs">{post.category}</Badge>

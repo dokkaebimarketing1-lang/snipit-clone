@@ -201,50 +201,7 @@ async function searchScrapedAds(query: string, options: SearchOptions = {}): Pro
   return { results: mapRowsToSearchResults(data as ScrapedAdRow[]), totalCount: count ?? 0 };
 }
 
-function generateMockResults(query: string, options: SearchOptions = {}): SearchResponse {
-  const platforms = ["meta", "instagram", "google", "tiktok"] as const;
-  const mediaTypes = ["photo", "video", "reels", "carousel"] as const;
-  const brands = [
-    "올리브영", "무신사", "29CM", "마켓컬리", "토스",
-    "당근마켓", "배달의민족", "야놀자", "카카오", "네이버",
-    "쿠팡", "Snipit", "뷔 fwee", "번개장터", "크림",
-    "오늘의집", "에이블리", "지그재그", "W컨셉", "SSG",
-  ];
-  const copies = [
-    "지금 시작하면 50% 할인",
-    "이 광고를 보고 있다면 당신도 이미 알고 있을 거예요",
-    "3일만에 완판된 비밀",
-    "마케터가 숨기고 싶은 레퍼런스",
-    "지금 바로 확인하세요",
-    "한정 수량 특별 프로모션",
-    "당신만을 위한 맞춤 추천",
-    "올 시즌 가장 핫한 아이템",
-    "무료배송 + 추가 할인 쿠폰",
-    "인플루언서들이 먼저 찾는 이유",
-  ];
 
-  const seed = query.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  const count = options.limit || 24;
-  const results: SearchResult[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const s = seed + i + (options.page || 1) * 100;
-    const picId = (s * 7 + 10) % 200 + 10;
-    results.push({
-      id: `mock-search-${s}-${i}`,
-      imageUrl: `https://picsum.photos/id/${picId}/400/500`,
-      brandName: options.brandName || brands[s % brands.length],
-      platform: platforms[s % platforms.length],
-      mediaType: mediaTypes[s % mediaTypes.length],
-      status: s % 3 === 0 ? "inactive" : "active",
-      publishedAt: `2026.${String((s % 3) + 1).padStart(2, "0")}.${String((s % 28) + 1).padStart(2, "0")}`,
-      durationDays: (s % 60) + 1,
-      isSponsored: s % 5 === 0,
-      copyText: copies[s % copies.length],
-    });
-  }
-  return { results, totalCount: 247 };
-}
 
 export async function searchAds(query: string, mode: "similarity" | "copywrite" = "similarity", options: SearchOptions = {}): Promise<SearchResponse> {
   try {
@@ -265,13 +222,10 @@ export async function searchAds(query: string, mode: "similarity" | "copywrite" 
   }
 
   try {
-    const dbResults = await searchScrapedAds(query, options);
-    if (dbResults.results.length > 0) return dbResults;
+    return await searchScrapedAds(query, options);
   } catch {
-    // Ignore DB search failures and use final mock fallback.
+    return { results: [], totalCount: 0 };
   }
-
-  return generateMockResults(query, options);
 }
 
 export interface DiscoverySection {
@@ -342,20 +296,15 @@ export async function getDiscoverySections(): Promise<DiscoveryData> {
       recent: recentData ? mapRowsToSearchResults(recentData as ScrapedAdRow[]) : [],
     };
   } catch {
-    // Fallback to mock data
-    const mockTrending = generateMockResults("trending", { limit: 10 }).results;
-    const mockRecent = generateMockResults("recent", { limit: 6 }).results;
-    const mockSections = categories.map((cat) => ({
-      title: cat.title,
-      emoji: cat.emoji,
-      category: cat.category,
-      ads: generateMockResults(cat.category, { limit: 8 }).results,
-    }));
-
     return {
-      trending: mockTrending,
-      sections: mockSections,
-      recent: mockRecent,
+      trending: [],
+      sections: categories.map((cat) => ({
+        title: cat.title,
+        emoji: cat.emoji,
+        category: cat.category,
+        ads: [],
+      })),
+      recent: [],
     };
   }
 }

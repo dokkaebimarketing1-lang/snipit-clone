@@ -9,7 +9,7 @@ import {
   IconPhoto,
   IconPlayerPlay,
 } from "@tabler/icons-react";
-import { aiCategories, mockAds } from "@/data/mockAds";
+import { aiCategories } from "@/data/mockAds";
 import { AdCard as AdCardType, MediaType, Platform } from "@/types";
 
 const platformBadgeLabel: Record<Platform, string> = {
@@ -36,16 +36,8 @@ export default function AIPage() {
   const [activeCategory, setActiveCategory] = useState(aiCategories[0]);
 
   const adsByCategory = useMemo(() => {
-    return aiCategories.reduce<Record<string, AdCardType[]>>((acc, category, index) => {
-      const start = (index * 3) % mockAds.length;
-      const ads = Array.from({ length: 6 }, (_, offset) => {
-        const ad = mockAds[(start + offset) % mockAds.length];
-        return {
-          ...ad,
-          copyText: `${category} · ${ad.copyText ?? "성과형 크리에이티브"}`,
-        };
-      });
-      acc[category] = ads;
+    return aiCategories.reduce<Record<string, AdCardType[]>>((acc, category) => {
+      acc[category] = [];
       return acc;
     }, {});
   }, []);
@@ -95,6 +87,12 @@ export default function AIPage() {
           {activeCategory}
         </Text>
 
+        {activeAds.length === 0 ? (
+          <Box py={60} style={{ textAlign: "center" }}>
+            <Text c="dimmed" size="sm">아직 수집된 광고 데이터가 없습니다.</Text>
+            <Text c="dimmed" size="xs" mt="xs">광고가 수집되면 AI가 자동으로 분류하여 보여드립니다.</Text>
+          </Box>
+        ) : (
         <ScrollArea type="never" scrollbarSize={6} offsetScrollbars>
           <Group gap="md" wrap="nowrap" align="stretch" py={4}>
             {activeAds.map((ad) => {
@@ -187,6 +185,7 @@ export default function AIPage() {
             })}
           </Group>
         </ScrollArea>
+        )}
       </Stack>
     </Stack>
   );
