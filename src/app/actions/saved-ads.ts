@@ -138,6 +138,13 @@ export async function importUrls(
 
       const brandName = parsed.hostname.replace("www.", "").split(".")[0];
 
+      // Extract thumbnail based on platform
+      let imageUrl: string | null = null;
+      if (platform === "youtube") {
+        const ytMatch = trimmedUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || trimmedUrl.match(/\/shorts\/([a-zA-Z0-9_-]+)/) || trimmedUrl.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+        if (ytMatch) imageUrl = `https://img.youtube.com/vi/${ytMatch[1].split("?")[0]}/hqdefault.jpg`;
+      }
+
       const { data, error: insertError } = await supabase
         .from("saved_ads")
         .insert({
@@ -145,6 +152,7 @@ export async function importUrls(
           board_id: options?.boardId || null,
           platform,
           external_id: trimmedUrl,
+          image_url: imageUrl,
           brand_name: brandName,
           media_type: mediaType,
           status: "active",
