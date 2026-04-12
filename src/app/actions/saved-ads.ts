@@ -126,64 +126,55 @@ export async function importUrls(
         continue;
       }
 
-      const lower = trimmedUrl.toLowerCase();
-      const platform = lower.includes("facebook.com") || lower.includes("fb.com") ? "meta"
-        : lower.includes("instagram.com") ? "instagram"
-        : lower.includes("tiktok.com") ? "tiktok"
-        : lower.includes("youtube.com") || lower.includes("youtu.be") ? "youtube"
-        : "meta";
+      // Capture ad detail + thumbnail via Puppeteer
+      const { captureAdDetail } = await import("@/lib/capture-thumbnail");
+      const detail = await captureAdDetail(trimmedUrl);
 
-      const mediaType = lower.includes("/reels/") || lower.includes("/reel/") || lower.includes("/shorts/") ? "reels"
-        : lower.includes("watch") || lower.includes("video") ? "video" : "photo";
-
-      const brandName = parsed.hostname.replace("www.", "").split(".")[0];
-
-      // Extract thumbnail based on platform
-      let imageUrl: string | null = null;
-      if (platform === "youtube") {
-        const ytMatch = trimmedUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/) || trimmedUrl.match(/\/shorts\/([a-zA-Z0-9_-]+)/) || trimmedUrl.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-        if (ytMatch) imageUrl = `https://img.youtube.com/vi/${ytMatch[1].split("?")[0]}/hqdefault.jpg`;
-      }
-
-      // Instagram/Facebook: capture thumbnail via Puppeteer
-      if (!imageUrl && (platform === "instagram" || platform === "meta")) {
+      // Upload thumbnail if captured
+      let imageUrl = detail.imageUrl;
+      if (!imageUrl && detail.imageBuffer) {
         try {
-          const { captureThumbnail } = await import("@/lib/capture-thumbnail");
-          const buffer = await captureThumbnail(trimmedUrl);
-          if (buffer) {
-            const sharp = (await import("sharp")).default;
-            const webpBuffer = await sharp(buffer).resize(600, 600, { fit: "inside", withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
-            const fileName = `thumbnails/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
-            const { createClient: createServiceClient } = await import("@supabase/supabase-js");
-            const serviceSupabase = createServiceClient(
-              process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-              process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-            );
-            const { error: uploadErr } = await serviceSupabase.storage.from("ad-uploads").upload(fileName, webpBuffer, { contentType: "image/webp", upsert: true });
-            if (!uploadErr) {
-              const { data: urlData } = serviceSupabase.storage.from("ad-uploads").getPublicUrl(fileName);
-              imageUrl = urlData.publicUrl;
-            }
+          const sharp = (await import("sharp")).default;
+          const webpBuffer = await sharp(detail.imageBuffer).resize(600, 600, { fit: "inside", withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
+          const fileName = `thumbnails/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+          const { createClient: createServiceClient } = await import("@supabase/supabase-js");
+          const svc = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL || "", process.env.SUPABASE_SERVICE_ROLE_KEY || "");
+          const { error: uploadErr } = await svc.storage.from("ad-uploads").upload(fileName, webpBuffer, { contentType: "image/webp", upsert: true });
+          if (!uploadErr) {
+            const { data: urlData } = svc.storage.from("ad-uploads").getPublicUrl(fileName);
+            imageUrl = urlData.publicUrl;
           }
-        } catch { /* thumbnail extraction failed, continue without */ }
+        } catch { /* upload failed */ }
       }
+
+      // Fallback values
+      const lower = trimmedUrl.toLowerCase();
+      const fallbackPlatform = lower.includes("facebook.com") ? "meta" : lower.includes("instagram.com") ? "instagram" : lower.includes("tiktok.com") ? "tiktok" : lower.includes("youtube.com") || lower.includes("youtu.be") ? "youtube" : "meta";
+      const fallbackBrand = parsed.hostname.replace("www.", "").split(".")[0];
 
       const { data, error: insertError } = await supabase
         .from("saved_ads")
         .insert({
           user_id: user.id,
           board_id: options?.boardId || null,
-          platform,
+          platform: detail.platform || fallbackPlatform,
           external_id: trimmedUrl,
           image_url: imageUrl,
-          brand_name: brandName,
-          media_type: mediaType,
-          status: "active",
+          brand_name: detail.brandName || fallbackBrand,
+          copy_text: detail.copyText || null,
+          media_type: detail.mediaType || "photo",
+          status: detail.status || "active",
+          published_at: detail.startedAt || null,
           media_tag: options?.mediaTag || null,
           hashtags: options?.hashtags || [],
           memo: options?.memo || null,
           category: options?.category || null,
           is_uploaded: false,
+          metadata: JSON.stringify({
+            externalId: detail.externalId,
+            ctaText: detail.ctaText,
+            landingUrl: detail.landingUrl,
+          }),
         })
         .select("id")
         .single();
