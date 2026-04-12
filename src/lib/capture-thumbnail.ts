@@ -15,26 +15,15 @@ export interface AdDetail {
 }
 
 async function getBrowser(): Promise<Browser> {
-  // 1. Try local Chrome first
+  // Connect to local Chrome (must be running with --remote-debugging-port=9333)
   try {
     return await puppeteer.connect({
       browserURL: "http://127.0.0.1:9333",
       defaultViewport: { width: 1280, height: 900 },
     });
-  } catch { /* not available */ }
-
-  // 2. Fallback: serverless chromium (Vercel)
-  try {
-    const chromium = (await import("@sparticuz/chromium")).default;
-    return await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: { width: 1280, height: 900 },
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
-  } catch { /* not available */ }
-
-  throw new Error("No browser available");
+  } catch {
+    throw new Error("로컬 Chrome이 실행되지 않았습니다. chrome.exe --remote-debugging-port=9333 으로 실행해주세요.");
+  }
 }
 
 function closeBrowser(browser: Browser) {
