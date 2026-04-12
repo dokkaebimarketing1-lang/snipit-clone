@@ -45,10 +45,18 @@ export function useAuth() {
     });
   };
 
+  const signInWithEmail = async (email: string, password: string) => {
+    const { error } = await getClient().auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error };
+  };
+
   const signOut = async () => {
     await getClient().auth.signOut();
     setUser(null);
   };
 
-  return { user, loading, signInWithGoogle, signOut };
+  return { user, loading, signInWithGoogle, signInWithEmail, signOut };
 }
