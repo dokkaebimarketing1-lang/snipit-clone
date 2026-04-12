@@ -1,17 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Anchor, Box, Card, Group, Image, Text } from "@mantine/core";
+import { Anchor, Avatar, Badge, Box, Card, Group, Image, Text } from "@mantine/core";
 import { Carousel } from "@mantine/carousel";
 import "@mantine/carousel/styles.css";
 import {
   IconCalendar,
   IconExternalLink,
   IconLayoutGrid,
+  IconNote,
   IconPhoto,
   IconPlayerPlay,
+  IconTag,
 } from "@tabler/icons-react";
-import { AdCard as AdCardType, MediaType, Platform } from "@/types";
+import { AdCard as AdCardType, MediaType, MediaTag, Platform } from "@/types";
 
 interface AdCardProps {
   ad: AdCardType;
@@ -40,15 +42,35 @@ const mediaTypeIcon: Record<MediaType, React.ComponentType<{ size?: number; colo
   carousel: IconLayoutGrid,
 };
 
+const mediaTagColors: Record<MediaTag, string> = {
+  "메타": "blue",
+  "네이버GFA": "green",
+  "구글": "red",
+  "크리테오": "orange",
+  "데이블": "violet",
+  "타불라": "cyan",
+  "틱톡": "dark",
+  "당근": "orange",
+  "릴스": "grape",
+  "쇼츠": "red",
+  "기타": "gray",
+};
+
 function formatDate(date: string): string {
-  const [year, month, day] = date.split(".");
-  return `${year}.${month}.${day}`;
+  if (date.includes(".")) {
+    const [year, month, day] = date.split(".");
+    return `${year}.${month}.${day}`;
+  }
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return date;
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function AdCard({ ad }: AdCardProps) {
   const MediaIcon = mediaTypeIcon[ad.mediaType];
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const [failedCarouselImages, setFailedCarouselImages] = useState<string[]>([]);
+  const [memoExpanded, setMemoExpanded] = useState(false);
   const snapshotUrl = useMemo(() => `https://www.facebook.com/ads/library/?id=${encodeURIComponent(ad.id)}`, [ad.id]);
   
   const isCarousel = ad.imageUrls && ad.imageUrls.length > 1;
@@ -243,6 +265,77 @@ export function AdCard({ ad }: AdCardProps) {
             </Text>
           </Group>
         </Group>
+
+        {/* 태그 영역 */}
+        {(ad.mediaTag || (ad.hashtags && ad.hashtags.length > 0)) && (
+          <Group gap={4} mt={8} wrap="wrap">
+            {ad.mediaTag && (
+              <Badge
+                size="xs"
+                variant="filled"
+                color={mediaTagColors[ad.mediaTag] || "gray"}
+              >
+                {ad.mediaTag}
+              </Badge>
+            )}
+            {ad.hashtags?.map((tag) => (
+              <Badge key={tag} size="xs" variant="outline" color="gray">
+                #{tag}
+              </Badge>
+            ))}
+          </Group>
+        )}
+
+        {/* 메모 영역 */}
+        {ad.memo && (
+          <Box
+            mt={8}
+            p={8}
+            style={{
+              backgroundColor: "#f9fafb",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMemoExpanded((prev) => !prev);
+            }}
+          >
+            <Group gap={4} mb={2}>
+              <IconNote size={12} color="#6b7280" />
+              <Text size="xs" fw={600} c="gray.6">메모</Text>
+            </Group>
+            <Text size="xs" c="gray.7" lineClamp={memoExpanded ? undefined : 2}>
+              {ad.memo}
+            </Text>
+          </Box>
+        )}
+
+        {/* 저장자 + 카테고리 */}
+        {(ad.savedBy || ad.category) && (
+          <Group justify="space-between" mt={8} wrap="nowrap">
+            {ad.savedBy && (
+              <Group gap={6} wrap="nowrap">
+                <Avatar
+                  src={ad.savedByAvatar}
+                  size={20}
+                  radius="xl"
+                  alt={ad.savedBy}
+                >
+                  {ad.savedBy.charAt(0)}
+                </Avatar>
+                <Text size="xs" c="gray.6" truncate>
+                  {ad.savedBy}
+                </Text>
+              </Group>
+            )}
+            {ad.category && (
+              <Badge size="xs" variant="light" color="pink" radius="sm">
+                {ad.category}
+              </Badge>
+            )}
+          </Group>
+        )}
       </Box>
     </Card>
   );

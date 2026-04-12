@@ -6,6 +6,10 @@ export type AdStatus = "active" | "inactive";
 
 export type SearchMode = "similarity" | "copywrite";
 
+export type MediaTag = '메타' | '네이버GFA' | '구글' | '크리테오' | '데이블' | '타불라' | '틱톡' | '당근' | '릴스' | '쇼츠' | '기타';
+
+export const MEDIA_TAGS: MediaTag[] = ['메타','네이버GFA','구글','크리테오','데이블','타불라','틱톡','당근','릴스','쇼츠','기타'];
+
 export interface AdCard {
   id: string;
   imageUrl: string;
@@ -27,6 +31,13 @@ export interface AdCard {
   comments?: number;
   views?: number;
   saves?: number;
+  mediaTag?: MediaTag;
+  hashtags?: string[];
+  memo?: string;
+  isUploaded?: boolean;
+  savedBy?: string;
+  savedByAvatar?: string;
+  category?: string;
 }
 
 export interface Competitor {

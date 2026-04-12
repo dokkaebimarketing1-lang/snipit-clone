@@ -13,6 +13,7 @@
     "@mantine/charts": "^8.3.17",
     "@mantine/core": "^8.3.17",
     "@mantine/dates": "^8.3.17",
+    "@mantine/dropzone": "^8.3.17",
     "@mantine/form": "^8.3.17",
     "@mantine/hooks": "^8.3.17",
     "@mantine/notifications": "^8.3.17",

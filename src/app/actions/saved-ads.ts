@@ -8,6 +8,9 @@ export async function saveAd(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
 
+  const hashtagsRaw = formData.get("hashtags") as string || "";
+  const hashtags = hashtagsRaw ? hashtagsRaw.split(",").map(t => t.trim()).filter(Boolean) : [];
+
   const { data, error } = await supabase
     .from("saved_ads")
     .insert({
@@ -22,6 +25,11 @@ export async function saveAd(formData: FormData) {
       status: formData.get("status") as string || "active",
       is_sponsored: formData.get("isSponsored") === "true",
       sponsor_name: formData.get("sponsorName") as string || null,
+      media_tag: formData.get("mediaTag") as string || null,
+      hashtags,
+      memo: formData.get("memo") as string || null,
+      is_uploaded: formData.get("isUploaded") === "true",
+      category: formData.get("category") as string || null,
     })
     .select()
     .single();
@@ -38,7 +46,7 @@ export async function getSavedAds(boardId?: string) {
 
   let query = supabase
     .from("saved_ads")
-    .select("*")
+    .select("*, profiles:user_id(full_name, avatar_url)")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
@@ -74,6 +82,36 @@ export async function moveAdToBoard(adId: string, boardId: string) {
   const { error } = await supabase
     .from("saved_ads")
     .update({ board_id: boardId })
+    .eq("id", adId)
+    .eq("user_id", user.id);
+
+  if (error) throw error;
+  revalidatePath("/board");
+}
+
+export async function updateAdTags(adId: string, mediaTag: string | null, hashtags: string[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("saved_ads")
+    .update({ media_tag: mediaTag, hashtags })
+    .eq("id", adId)
+    .eq("user_id", user.id);
+
+  if (error) throw error;
+  revalidatePath("/board");
+}
+
+export async function updateAdMemo(adId: string, memo: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { error } = await supabase
+    .from("saved_ads")
+    .update({ memo })
     .eq("id", adId)
     .eq("user_id", user.id);
 

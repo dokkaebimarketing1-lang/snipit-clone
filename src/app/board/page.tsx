@@ -20,16 +20,21 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
+  IconCloudUpload,
   IconLayoutBoard,
+  IconLink,
   IconPlus,
   IconFolder,
   IconDotsVertical,
   IconEdit,
   IconTrash,
   IconShare,
+  IconFilter,
 } from "@tabler/icons-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Board, Folder } from "@/types";
+import { Board, Folder, MEDIA_TAGS, MediaTag } from "@/types";
+import { AdUploader } from "@/components/ads/AdUploader";
+import { UrlImportModal } from "@/components/ads/UrlImportModal";
 
 export default function BoardPage() {
   const { user } = useAuth();
@@ -41,8 +46,15 @@ export default function BoardPage() {
     useDisclosure(false);
   const [folderOpened, { open: openFolder, close: closeFolder }] =
     useDisclosure(false);
+  const [uploadOpened, { open: openUpload, close: closeUpload }] =
+    useDisclosure(false);
+  const [urlImportOpened, { open: openUrlImport, close: closeUrlImport }] =
+    useDisclosure(false);
   const [newBoardName, setNewBoardName] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
+
+  // Tag filter state
+  const [selectedMediaTag, setSelectedMediaTag] = useState<MediaTag | null>(null);
 
   // Fetch real data when authenticated
   const loadData = useCallback(async () => {
@@ -298,10 +310,50 @@ export default function BoardPage() {
             >
               새 폴더
             </Button>
+            <Button
+              variant="light"
+              color="indigo"
+              leftSection={<IconLink size={16} />}
+              onClick={openUrlImport}
+            >
+              URL 가져오기
+            </Button>
+            <Button
+              variant="light"
+              color="teal"
+              leftSection={<IconCloudUpload size={16} />}
+              onClick={openUpload}
+            >
+              파일 업로드
+            </Button>
             <Button leftSection={<IconPlus size={16} />} onClick={openBoard}>
               새 보드 만들기
             </Button>
           </Group>
+        </Group>
+
+        {/* 매체 태그 필터 */}
+        <Group gap={6} wrap="wrap">
+          <IconFilter size={16} color="var(--mantine-color-gray-5)" />
+          <Badge
+            variant={selectedMediaTag === null ? "filled" : "outline"}
+            color="gray"
+            style={{ cursor: "pointer" }}
+            onClick={() => setSelectedMediaTag(null)}
+          >
+            전체
+          </Badge>
+          {MEDIA_TAGS.map((tag) => (
+            <Badge
+              key={tag}
+              variant={selectedMediaTag === tag ? "filled" : "outline"}
+              color={selectedMediaTag === tag ? "blue" : "gray"}
+              style={{ cursor: "pointer" }}
+              onClick={() => setSelectedMediaTag(selectedMediaTag === tag ? null : tag)}
+            >
+              {tag}
+            </Badge>
+          ))}
         </Group>
 
         {folders.length > 0 && (
@@ -416,6 +468,24 @@ export default function BoardPage() {
           </Group>
         </Stack>
       </Modal>
+
+      {/* File Upload Modal */}
+      <AdUploader
+        opened={uploadOpened}
+        onClose={closeUpload}
+        onUploadComplete={() => {
+          loadData();
+        }}
+      />
+
+      {/* URL Import Modal */}
+      <UrlImportModal
+        opened={urlImportOpened}
+        onClose={closeUrlImport}
+        onImportComplete={() => {
+          loadData();
+        }}
+      />
     </>
   );
 }

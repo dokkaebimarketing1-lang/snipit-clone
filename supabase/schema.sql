@@ -69,6 +69,11 @@ create table if not exists public.saved_ads (
   is_sponsored boolean default false,
   sponsor_name text,
   metadata jsonb default '{}',
+  media_tag text check (media_tag in ('메타','네이버GFA','구글','크리테오','데이블','타불라','틱톡','당근','릴스','쇼츠','기타')),
+  hashtags text[] default '{}',
+  memo text,
+  is_uploaded boolean default false,
+  category text,
   created_at timestamptz default now()
 );
 
