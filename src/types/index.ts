@@ -38,8 +38,6 @@ export interface AdCard {
   savedBy?: string;
   savedByAvatar?: string;
   category?: string;
-  landingUrl?: string;
-  ctaText?: string;
 }
 
 export interface Competitor {
