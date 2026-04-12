@@ -66,11 +66,12 @@ export default function BoardPage() {
       const { getBoards } = await import("@/app/actions/boards");
       const { getFolders } = await import("@/app/actions/folders");
       const { getSavedAds } = await import("@/app/actions/saved-ads");
-      const [boardsData, foldersData, adsData] = await Promise.all([
+      const [boardsData, foldersData] = await Promise.all([
         getBoards(),
         getFolders(),
-        getSavedAds(),
       ]);
+      let adsData = null;
+      try { adsData = await getSavedAds(); } catch { /* ads fetch failed */ }
       if (boardsData) {
         setBoards(
           boardsData.map(

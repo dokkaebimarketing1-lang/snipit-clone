@@ -46,7 +46,7 @@ export async function getSavedAds(boardId?: string) {
 
   let query = supabase
     .from("saved_ads")
-    .select("*, profiles:user_id(full_name, avatar_url)")
+    .select("*")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
