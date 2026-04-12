@@ -116,9 +116,10 @@ export default function BoardPage() {
       if (adsData) {
         setSavedAds(
           adsData.map((a: Record<string, unknown>) => {
-            const createdAt = a.created_at as string;
-            const dateObj = createdAt ? new Date(createdAt) : new Date();
-            const formatted = `${dateObj.getFullYear()}.${String(dateObj.getMonth()+1).padStart(2,"0")}.${String(dateObj.getDate()).padStart(2,"0")}`;
+            const pubDate = (a.published_at as string) || (a.created_at as string);
+            const dateObj = pubDate ? new Date(pubDate) : new Date();
+            const formatted = isNaN(dateObj.getTime()) ? "" : `${dateObj.getFullYear()}.${String(dateObj.getMonth()+1).padStart(2,"0")}.${String(dateObj.getDate()).padStart(2,"0")}`;
+            const meta = typeof a.metadata === "string" ? JSON.parse(a.metadata || "{}") : (a.metadata || {});
             return {
               id: a.id as string,
               imageUrl: (a.image_url as string) || "",
@@ -135,6 +136,8 @@ export default function BoardPage() {
               mediaTag: a.media_tag as AdCardType["mediaTag"],
               hashtags: (a.hashtags as string[]) || [],
               category: a.category as string,
+              landingUrl: (meta as Record<string,unknown>)?.landingUrl as string,
+              ctaText: (meta as Record<string,unknown>)?.ctaText as string,
             };
           })
         );

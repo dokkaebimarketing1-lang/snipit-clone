@@ -327,7 +327,14 @@ export function AdCard({ ad }: AdCardProps) {
             </Group>
           </Group>
 
-          {/* 태그 영역 */}
+          {/* 광고 카피 */}
+        {ad.copyText && (
+          <Text size="xs" c="gray.7" lineClamp={3} mb={8} style={{ whiteSpace: "pre-wrap" }}>
+            {ad.copyText}
+          </Text>
+        )}
+
+        {/* 태그 영역 */}
           {(ad.mediaTag || (ad.hashtags && ad.hashtags.length > 0)) && (
             <Group gap={4} mt={8} wrap="wrap">
               {ad.mediaTag && (
