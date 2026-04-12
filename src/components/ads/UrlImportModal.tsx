@@ -32,7 +32,7 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
   const [category, setCategory] = useState("");
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [result, setResult] = useState<{ saved: number; failed: number } | null>(null);
+  const [result, setResult] = useState<{ saved: number; failed: number; errorMsg?: string } | null>(null);
 
   const addUrlField = () => {
     if (urls.length < 20) setUrls((prev) => [...prev, ""]);
@@ -75,8 +75,8 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
       setResult({ saved: data.saved, failed: data.failed });
       setProgress(100);
       onImportComplete();
-    } catch {
-      setResult({ saved: 0, failed: validUrls.length });
+    } catch (err) {
+      setResult({ saved: 0, failed: validUrls.length, errorMsg: err instanceof Error ? err.message : String(err) });
     } finally {
       setImporting(false);
     }
@@ -185,9 +185,12 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
         {importing && <Progress value={progress} size="sm" animated />}
 
         {result && (
-          <Text size="sm" c={result.failed > 0 ? "orange" : "green"} fw={600}>
-            {result.saved}개 가져오기 완료{result.failed > 0 ? `, ${result.failed}개 실패` : ""}
-          </Text>
+          <>
+            <Text size="sm" c={result.failed > 0 ? "orange" : "green"} fw={600}>
+              {result.saved}개 가져오기 완료{result.failed > 0 ? `, ${result.failed}개 실패` : ""}
+            </Text>
+            {result.errorMsg && <Text size="xs" c="red">{result.errorMsg}</Text>}
+          </>
         )}
 
         <Group justify="flex-end">
