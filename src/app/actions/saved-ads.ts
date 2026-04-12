@@ -145,6 +145,29 @@ export async function importUrls(
         if (ytMatch) imageUrl = `https://img.youtube.com/vi/${ytMatch[1].split("?")[0]}/hqdefault.jpg`;
       }
 
+      // Instagram/Facebook: capture thumbnail via Puppeteer
+      if (!imageUrl && (platform === "instagram" || platform === "meta")) {
+        try {
+          const { captureThumbnail } = await import("@/lib/capture-thumbnail");
+          const buffer = await captureThumbnail(trimmedUrl);
+          if (buffer) {
+            const sharp = (await import("sharp")).default;
+            const webpBuffer = await sharp(buffer).resize(600, 600, { fit: "inside", withoutEnlargement: true }).webp({ quality: 75 }).toBuffer();
+            const fileName = `thumbnails/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+            const { createClient: createServiceClient } = await import("@supabase/supabase-js");
+            const serviceSupabase = createServiceClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+              process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+            );
+            const { error: uploadErr } = await serviceSupabase.storage.from("ad-uploads").upload(fileName, webpBuffer, { contentType: "image/webp", upsert: true });
+            if (!uploadErr) {
+              const { data: urlData } = serviceSupabase.storage.from("ad-uploads").getPublicUrl(fileName);
+              imageUrl = urlData.publicUrl;
+            }
+          }
+        } catch { /* thumbnail extraction failed, continue without */ }
+      }
+
       const { data, error: insertError } = await supabase
         .from("saved_ads")
         .insert({
