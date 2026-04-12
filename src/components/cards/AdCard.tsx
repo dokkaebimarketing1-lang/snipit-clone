@@ -100,6 +100,13 @@ export function AdCard({ ad }: AdCardProps) {
   const [playerOpened, { open: openPlayer, close: closePlayer }] = useDisclosure(false);
   const snapshotUrl = useMemo(() => ad.externalUrl || `https://www.facebook.com/ads/library/?id=${encodeURIComponent(ad.id)}`, [ad.id, ad.externalUrl]);
 
+  // Extract library ID from Meta Ads Library URL
+  const libraryId = useMemo(() => {
+    if (!ad.externalUrl) return null;
+    const match = ad.externalUrl.match(/[?&]id=(\d+)/);
+    return match ? match[1] : null;
+  }, [ad.externalUrl]);
+
   const isCarousel = ad.imageUrls && ad.imageUrls.length > 1;
   const hasImageError = isCarousel
     ? ad.imageUrls!.every(url => failedCarouselImages.includes(url))
@@ -325,32 +332,42 @@ export function AdCard({ ad }: AdCardProps) {
             {ad.brandName}
           </Text>
 
-          <Text size="xs" c="dimmed" mb={8}>
-            {formatDate(ad.publishedAt)}
-          </Text>
-
-          <Group justify="space-between" wrap="nowrap">
-            <Group gap={5} wrap="nowrap">
-              <Box
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  backgroundColor: ad.status === "active" ? "#22c55e" : "#9ca3af",
-                }}
-              />
+          {/* 상세 정보 (라이브러리 ID, 게재일, 상태) */}
+          <Box mb={8} style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.6 }}>
+            {libraryId && (
               <Text size="xs" c="dimmed">
-                {ad.status === "active" ? "게재 중" : "게재 종료"}
+                #ID:{libraryId}
               </Text>
+            )}
+            <Group gap={8} wrap="nowrap">
+              <Group gap={4} wrap="nowrap">
+                <IconCalendar size={11} color="#9ca3af" />
+                <Text size="xs" c="dimmed">
+                  {ad.publishedAt ? `${formatDate(ad.publishedAt)}에 게재 시작` : "게재일 미확인"}
+                </Text>
+              </Group>
             </Group>
-
-            <Group gap={4} wrap="nowrap">
-              <IconCalendar size={12} color="#9ca3af" />
-              <Text size="xs" c="dimmed">
-                {ad.durationDays}일간 게재
-              </Text>
+            <Group gap={8} mt={2} wrap="nowrap">
+              <Group gap={4} wrap="nowrap">
+                <Box
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    backgroundColor: ad.status === "active" ? "#22c55e" : "#9ca3af",
+                  }}
+                />
+                <Text size="xs" c="dimmed">
+                  {ad.status === "active" ? "게재 중" : "게재 종료"}
+                </Text>
+              </Group>
+              {ad.durationDays > 0 && (
+                <Text size="xs" c="dimmed">
+                  · {ad.durationDays}일간 게재
+                </Text>
+              )}
             </Group>
-          </Group>
+          </Box>
 
           {/* 광고 카피 */}
         {ad.copyText && (
