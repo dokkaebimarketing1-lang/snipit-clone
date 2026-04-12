@@ -32,14 +32,17 @@ import {
   IconFilter,
 } from "@tabler/icons-react";
 import { useAuth } from "@/hooks/useAuth";
-import { Board, Folder, MEDIA_TAGS, MediaTag } from "@/types";
+import { AdCard as AdCardType, Board, Folder, MEDIA_TAGS, MediaTag } from "@/types";
 import { AdUploader } from "@/components/ads/AdUploader";
 import { UrlImportModal } from "@/components/ads/UrlImportModal";
+import { AdCard } from "@/components/cards/AdCard";
+import { MasonryGrid } from "@/components/common/MasonryGrid";
 
 export default function BoardPage() {
   const { user } = useAuth();
   const [boards, setBoards] = useState<Board[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [savedAds, setSavedAds] = useState<AdCardType[]>([]);
 
   // Modal states
   const [boardOpened, { open: openBoard, close: closeBoard }] =
@@ -62,9 +65,11 @@ export default function BoardPage() {
     try {
       const { getBoards } = await import("@/app/actions/boards");
       const { getFolders } = await import("@/app/actions/folders");
-      const [boardsData, foldersData] = await Promise.all([
+      const { getSavedAds } = await import("@/app/actions/saved-ads");
+      const [boardsData, foldersData, adsData] = await Promise.all([
         getBoards(),
         getFolders(),
+        getSavedAds(),
       ]);
       if (boardsData) {
         setBoards(
@@ -107,6 +112,29 @@ export default function BoardPage() {
           )
         );
       }
+      if (adsData) {
+        setSavedAds(
+          adsData.map((a: Record<string, unknown>) => ({
+            id: a.id as string,
+            imageUrl: (a.image_url as string) || "",
+            brandName: (a.brand_name as string) || "Unknown",
+            platform: (a.platform as AdCardType["platform"]) || "meta",
+            mediaType: (a.media_type as AdCardType["mediaType"]) || "photo",
+            status: (a.status as AdCardType["status"]) || "active",
+            publishedAt: a.created_at ? new Date(a.created_at as string).toISOString() : new Date().toISOString(),
+            durationDays: (a.duration_days as number) || 0,
+            isSponsored: (a.is_sponsored as boolean) || false,
+            externalUrl: a.external_id as string,
+            copyText: a.copy_text as string,
+            memo: a.memo as string,
+            mediaTag: a.media_tag as AdCardType["mediaTag"],
+            hashtags: (a.hashtags as string[]) || [],
+            category: a.category as string,
+            savedBy: (a.profiles as Record<string, unknown>)?.full_name as string,
+            savedByAvatar: (a.profiles as Record<string, unknown>)?.avatar_url as string,
+          }))
+        );
+      }
     } catch {
       // Supabase not configured — keep empty state
     }
@@ -121,6 +149,7 @@ export default function BoardPage() {
     if (!user) {
       setBoards([]);
       setFolders([]);
+      setSavedAds([]);
     }
   }, [user]);
 
@@ -416,6 +445,30 @@ export default function BoardPage() {
             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
               {standaloneBoards.map(renderBoardCard)}
             </SimpleGrid>
+          </Stack>
+        )}
+
+        {/* 저장된 광고 레퍼런스 */}
+        {savedAds.length > 0 && (
+          <Stack gap="md" mt="xl">
+            <Group gap="sm">
+              <Text fw={600} size="lg">
+                저장된 광고 레퍼런스
+              </Text>
+              <Badge variant="light" color="blue">
+                {selectedMediaTag
+                  ? savedAds.filter((a) => a.mediaTag === selectedMediaTag).length
+                  : savedAds.length}개
+              </Badge>
+            </Group>
+            <MasonryGrid>
+              {(selectedMediaTag
+                ? savedAds.filter((a) => a.mediaTag === selectedMediaTag)
+                : savedAds
+              ).map((ad) => (
+                <AdCard key={ad.id} ad={ad} />
+              ))}
+            </MasonryGrid>
           </Stack>
         )}
       </Stack>
