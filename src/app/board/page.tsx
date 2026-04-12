@@ -115,25 +115,28 @@ export default function BoardPage() {
       }
       if (adsData) {
         setSavedAds(
-          adsData.map((a: Record<string, unknown>) => ({
-            id: a.id as string,
-            imageUrl: (a.image_url as string) || "",
-            brandName: (a.brand_name as string) || "Unknown",
-            platform: (a.platform as AdCardType["platform"]) || "meta",
-            mediaType: (a.media_type as AdCardType["mediaType"]) || "photo",
-            status: (a.status as AdCardType["status"]) || "active",
-            publishedAt: a.created_at ? new Date(a.created_at as string).toISOString() : new Date().toISOString(),
-            durationDays: (a.duration_days as number) || 0,
-            isSponsored: (a.is_sponsored as boolean) || false,
-            externalUrl: a.external_id as string,
-            copyText: a.copy_text as string,
-            memo: a.memo as string,
-            mediaTag: a.media_tag as AdCardType["mediaTag"],
-            hashtags: (a.hashtags as string[]) || [],
-            category: a.category as string,
-            savedBy: (a.profiles as Record<string, unknown>)?.full_name as string,
-            savedByAvatar: (a.profiles as Record<string, unknown>)?.avatar_url as string,
-          }))
+          adsData.map((a: Record<string, unknown>) => {
+            const createdAt = a.created_at as string;
+            const dateObj = createdAt ? new Date(createdAt) : new Date();
+            const formatted = `${dateObj.getFullYear()}.${String(dateObj.getMonth()+1).padStart(2,"0")}.${String(dateObj.getDate()).padStart(2,"0")}`;
+            return {
+              id: a.id as string,
+              imageUrl: (a.image_url as string) || "",
+              brandName: (a.brand_name as string) || "Unknown",
+              platform: (a.platform as AdCardType["platform"]) || "meta",
+              mediaType: (a.media_type as AdCardType["mediaType"]) || "photo",
+              status: (a.status as AdCardType["status"]) || "active",
+              publishedAt: formatted,
+              durationDays: (a.duration_days as number) || 0,
+              isSponsored: (a.is_sponsored as boolean) || false,
+              externalUrl: a.external_id as string,
+              copyText: a.copy_text as string,
+              memo: a.memo as string,
+              mediaTag: a.media_tag as AdCardType["mediaTag"],
+              hashtags: (a.hashtags as string[]) || [],
+              category: a.category as string,
+            };
+          })
         );
       }
     } catch {

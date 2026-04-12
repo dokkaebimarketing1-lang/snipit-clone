@@ -71,12 +71,12 @@ export function AdCard({ ad }: AdCardProps) {
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const [failedCarouselImages, setFailedCarouselImages] = useState<string[]>([]);
   const [memoExpanded, setMemoExpanded] = useState(false);
-  const snapshotUrl = useMemo(() => `https://www.facebook.com/ads/library/?id=${encodeURIComponent(ad.id)}`, [ad.id]);
+  const snapshotUrl = useMemo(() => ad.externalUrl || `https://www.facebook.com/ads/library/?id=${encodeURIComponent(ad.id)}`, [ad.id, ad.externalUrl]);
   
   const isCarousel = ad.imageUrls && ad.imageUrls.length > 1;
   const hasImageError = isCarousel
     ? ad.imageUrls!.every(url => failedCarouselImages.includes(url))
-    : failedImageUrl === ad.imageUrl;
+    : !ad.imageUrl || failedImageUrl === ad.imageUrl;
 
   const renderPlaceholder = (showLink = true) => (
     <Box
