@@ -64,6 +64,7 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
     try {
       const res = await fetch("/api/crawl/url", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           urls: validUrls,

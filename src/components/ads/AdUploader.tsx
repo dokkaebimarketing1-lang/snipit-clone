@@ -77,7 +77,7 @@ export function AdUploader({ opened, onClose, boardId, onUploadComplete }: AdUpl
     setProgress(30);
 
     try {
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: formData });
       setProgress(90);
       const data = await res.json();
 
