@@ -36,7 +36,6 @@ import { AdCard as AdCardType, Board, Folder, MEDIA_TAGS, MediaTag } from "@/typ
 import { AdUploader } from "@/components/ads/AdUploader";
 import { UrlImportModal } from "@/components/ads/UrlImportModal";
 import { AdCard } from "@/components/cards/AdCard";
-import { MasonryGrid } from "@/components/common/MasonryGrid";
 
 export default function BoardPage() {
   const { user } = useAuth();
@@ -336,7 +335,7 @@ export default function BoardPage() {
             <ThemeIcon size="lg" radius="md" variant="light" color="blue">
               <IconLayoutBoard size={20} />
             </ThemeIcon>
-            <Title order={2}>보드</Title>
+            <Title order={2}>커브 광고 드라이브</Title>
           </Group>
           <Group gap="sm">
             <Button
@@ -468,14 +467,14 @@ export default function BoardPage() {
                   : savedAds.length}개
               </Badge>
             </Group>
-            <MasonryGrid>
+            <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 5 }} spacing="md">
               {(selectedMediaTag
                 ? savedAds.filter((a) => a.mediaTag === selectedMediaTag)
                 : savedAds
               ).map((ad) => (
                 <AdCard key={ad.id} ad={ad} />
               ))}
-            </MasonryGrid>
+            </SimpleGrid>
           </Stack>
         )}
       </Stack>
@@ -533,6 +532,7 @@ export default function BoardPage() {
       <AdUploader
         opened={uploadOpened}
         onClose={closeUpload}
+        boards={boards.map((b) => ({ id: b.id, name: b.name }))}
         onUploadComplete={() => {
           loadData();
         }}

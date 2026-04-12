@@ -10,8 +10,8 @@ import "@mantine/notifications/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "스니핏 - 레퍼런스 찾는 시간을 10배 줄여주는",
-  description: "찾고 싶으면 찾아지는 콘텐츠 레퍼런스, 스니핏",
+  title: "커브 광고 드라이브",
+  description: "광고 레퍼런스 DB - 커브 광고 드라이브",
 };
 
 export default function RootLayout({

@@ -33,15 +33,22 @@ const ACCEPTED_MIME_TYPES = [
   "video/quicktime",
 ];
 
+interface BoardOption {
+  id: string;
+  name: string;
+}
+
 interface AdUploaderProps {
   opened: boolean;
   onClose: () => void;
   boardId?: string;
+  boards?: BoardOption[];
   onUploadComplete: () => void;
 }
 
-export function AdUploader({ opened, onClose, boardId, onUploadComplete }: AdUploaderProps) {
+export function AdUploader({ opened, onClose, boardId, boards, onUploadComplete }: AdUploaderProps) {
   const [files, setFiles] = useState<File[]>([]);
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(boardId || null);
   const [mediaTag, setMediaTag] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
@@ -69,7 +76,7 @@ export function AdUploader({ opened, onClose, boardId, onUploadComplete }: AdUpl
 
     const formData = new FormData();
     files.forEach((file) => formData.append("files", file));
-    if (boardId) formData.set("boardId", boardId);
+    if (selectedBoardId) formData.set("boardId", selectedBoardId);
     if (mediaTag) formData.set("mediaTag", mediaTag);
     if (hashtags.length > 0) formData.set("hashtags", hashtags.join(","));
     if (memo) formData.set("memo", memo);
@@ -183,6 +190,18 @@ export function AdUploader({ opened, onClose, boardId, onUploadComplete }: AdUpl
               {previews}
             </SimpleGrid>
           </>
+        )}
+
+        {boards && boards.length > 0 && (
+          <Select
+            label="보드 선택"
+            placeholder="보드를 선택하세요"
+            data={boards.map((b) => ({ value: b.id, label: b.name }))}
+            value={selectedBoardId}
+            onChange={setSelectedBoardId}
+            clearable
+            searchable
+          />
         )}
 
         <Select
