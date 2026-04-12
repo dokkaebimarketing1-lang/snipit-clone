@@ -106,7 +106,7 @@ export async function updateAdTags(adId: string, mediaTag: string | null, hashta
 
 export async function importUrls(
   urls: string[],
-  options?: { boardId?: string; mediaTag?: string; hashtags?: string[]; memo?: string; category?: string }
+  options?: { boardId?: string; folderId?: string; mediaTag?: string; hashtags?: string[]; memo?: string; category?: string }
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -158,6 +158,7 @@ export async function importUrls(
           hashtags: options?.hashtags || [],
           memo: options?.memo || null,
           category: options?.category || null,
+          folder_id: options?.folderId || null,
           is_uploaded: false,
         })
         .select("id")

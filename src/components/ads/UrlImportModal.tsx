@@ -17,15 +17,22 @@ import { IconLink, IconPlus, IconTrash } from "@tabler/icons-react";
 import { MEDIA_TAGS, MediaTag } from "@/types";
 import { importUrls } from "@/app/actions/saved-ads";
 
+interface FolderOption {
+  id: string;
+  name: string;
+}
+
 interface UrlImportModalProps {
   opened: boolean;
   onClose: () => void;
   boardId?: string;
+  folders?: FolderOption[];
   onImportComplete: () => void;
 }
 
-export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: UrlImportModalProps) {
+export function UrlImportModal({ opened, onClose, boardId, folders, onImportComplete }: UrlImportModalProps) {
   const [urls, setUrls] = useState<string[]>([""]);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [mediaTag, setMediaTag] = useState<string | null>(null);
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
@@ -65,6 +72,7 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
     try {
       const data = await importUrls(validUrls, {
         boardId: boardId || undefined,
+        folderId: selectedFolderId || undefined,
         mediaTag: mediaTag || undefined,
         hashtags: hashtags.length > 0 ? hashtags : undefined,
         memo: memo || undefined,
@@ -145,6 +153,18 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
           >
             URL 추가
           </Button>
+        )}
+
+        {folders && folders.length > 0 && (
+          <Select
+            label="폴더 선택"
+            placeholder="폴더를 선택하세요"
+            data={folders.map((f) => ({ value: f.id, label: f.name }))}
+            value={selectedFolderId}
+            onChange={setSelectedFolderId}
+            clearable
+            searchable
+          />
         )}
 
         <Select
