@@ -116,12 +116,16 @@ export function AdCard({ ad }: AdCardProps) {
     }
   };
 
+  const isThumbnailPending = !ad.imageUrl && !!ad.externalUrl;
+
   const renderPlaceholder = (showLink = true) => (
     <Box
       style={{
         width: "100%",
         aspectRatio: "4 / 5",
-        background: "linear-gradient(160deg, #f3f4f6 0%, #e5e7eb 100%)",
+        background: isThumbnailPending
+          ? "linear-gradient(160deg, #eef2ff 0%, #e0e7ff 100%)"
+          : "linear-gradient(160deg, #f3f4f6 0%, #e5e7eb 100%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -130,25 +134,46 @@ export function AdCard({ ad }: AdCardProps) {
         padding: 16,
       }}
     >
-      <Box
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          backgroundColor: "#334155",
-          color: "#ffffff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 700,
-        }}
-      >
-        {ad.brandName.charAt(0) || "A"}
-      </Box>
-      <Text size="sm" fw={600} ta="center" lineClamp={1} c="dark.6">
-        {ad.brandName}
-      </Text>
-      {showLink && (
+      {isThumbnailPending ? (
+        <>
+          <Box
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "3px solid #818cf8",
+              borderTopColor: "transparent",
+              animation: "spin 1s linear infinite",
+            }}
+          />
+          <Text size="xs" fw={600} ta="center" c="indigo.6">
+            썸네일 가져오는 중입니다
+          </Text>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </>
+      ) : (
+        <>
+          <Box
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              backgroundColor: "#334155",
+              color: "#ffffff",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+            }}
+          >
+            {ad.brandName.charAt(0) || "A"}
+          </Box>
+          <Text size="sm" fw={600} ta="center" lineClamp={1} c="dark.6">
+            {ad.brandName}
+          </Text>
+        </>
+      )}
+      {showLink && !isThumbnailPending && (
         <Anchor href={snapshotUrl} target="_blank" rel="noreferrer" size="xs" fw={600} c="blue.7" underline="hover">
           광고 보기
         </Anchor>
