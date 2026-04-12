@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { IconLink, IconPlus, IconTrash } from "@tabler/icons-react";
 import { MEDIA_TAGS, MediaTag } from "@/types";
+import { importUrls } from "@/app/actions/saved-ads";
 
 interface UrlImportModalProps {
   opened: boolean;
@@ -62,25 +63,15 @@ export function UrlImportModal({ opened, onClose, boardId, onImportComplete }: U
     setProgress(20);
 
     try {
-      const res = await fetch("/api/crawl/url", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          urls: validUrls,
-          boardId: boardId || undefined,
-          mediaTag: mediaTag || undefined,
-          hashtags: hashtags.length > 0 ? hashtags : undefined,
-          memo: memo || undefined,
-          category: category || undefined,
-        }),
+      const data = await importUrls(validUrls, {
+        boardId: boardId || undefined,
+        mediaTag: mediaTag || undefined,
+        hashtags: hashtags.length > 0 ? hashtags : undefined,
+        memo: memo || undefined,
+        category: category || undefined,
       });
 
-      setProgress(80);
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Import failed");
-
+      setProgress(90);
       setResult({ saved: data.saved, failed: data.failed });
       setProgress(100);
       onImportComplete();

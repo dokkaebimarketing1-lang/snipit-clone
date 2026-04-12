@@ -104,6 +104,73 @@ export async function updateAdTags(adId: string, mediaTag: string | null, hashta
   revalidatePath("/board");
 }
 
+export async function importUrls(
+  urls: string[],
+  options?: { boardId?: string; mediaTag?: string; hashtags?: string[]; memo?: string; category?: string }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const results: { url: string; id: string }[] = [];
+  const errors: { url: string; error: string }[] = [];
+
+  for (const url of urls.slice(0, 20)) {
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) continue;
+
+    try {
+      const parsed = new globalThis.URL(trimmedUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        errors.push({ url: trimmedUrl, error: "Invalid protocol" });
+        continue;
+      }
+
+      const lower = trimmedUrl.toLowerCase();
+      const platform = lower.includes("facebook.com") || lower.includes("fb.com") ? "meta"
+        : lower.includes("instagram.com") ? "instagram"
+        : lower.includes("tiktok.com") ? "tiktok"
+        : lower.includes("youtube.com") || lower.includes("youtu.be") ? "youtube"
+        : "meta";
+
+      const mediaType = lower.includes("/reels/") || lower.includes("/reel/") || lower.includes("/shorts/") ? "reels"
+        : lower.includes("watch") || lower.includes("video") ? "video" : "photo";
+
+      const brandName = parsed.hostname.replace("www.", "").split(".")[0];
+
+      const { data, error: insertError } = await supabase
+        .from("saved_ads")
+        .insert({
+          user_id: user.id,
+          board_id: options?.boardId || null,
+          platform,
+          external_id: trimmedUrl,
+          brand_name: brandName,
+          media_type: mediaType,
+          status: "active",
+          media_tag: options?.mediaTag || null,
+          hashtags: options?.hashtags || [],
+          memo: options?.memo || null,
+          category: options?.category || null,
+          is_uploaded: false,
+        })
+        .select("id")
+        .single();
+
+      if (insertError || !data) {
+        errors.push({ url: trimmedUrl, error: insertError?.message || "Insert failed" });
+        continue;
+      }
+      results.push({ url: trimmedUrl, id: data.id });
+    } catch (err) {
+      errors.push({ url: trimmedUrl, error: err instanceof Error ? err.message : "Unknown error" });
+    }
+  }
+
+  revalidatePath("/board");
+  return { saved: results.length, failed: errors.length, results, errors: errors.length > 0 ? errors : undefined };
+}
+
 export async function updateAdMemo(adId: string, memo: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
