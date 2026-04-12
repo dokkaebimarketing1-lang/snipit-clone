@@ -25,6 +25,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { MEDIA_TAGS, MediaTag } from "@/types";
+import { uploadAds } from "@/app/actions/saved-ads";
 
 const ACCEPTED_MIME_TYPES = [
   ...IMAGE_MIME_TYPE,
@@ -76,7 +77,7 @@ export function AdUploader({ opened, onClose, boardId, boards, onUploadComplete 
 
     const formData = new FormData();
     files.forEach((file) => formData.append("files", file));
-    if (selectedBoardId) formData.set("boardId", selectedBoardId);
+    if (selectedBoardId) formData.set("folderId", selectedBoardId);
     if (mediaTag) formData.set("mediaTag", mediaTag);
     if (hashtags.length > 0) formData.set("hashtags", hashtags.join(","));
     if (memo) formData.set("memo", memo);
@@ -84,11 +85,8 @@ export function AdUploader({ opened, onClose, boardId, boards, onUploadComplete 
     setProgress(30);
 
     try {
-      const res = await fetch("/api/upload", { method: "POST", credentials: "include", body: formData });
+      const data = await uploadAds(formData);
       setProgress(90);
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Upload failed");
 
       setResult({ uploaded: data.uploaded, failed: data.failed });
       setProgress(100);
